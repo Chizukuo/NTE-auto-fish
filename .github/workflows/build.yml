@@ -1,0 +1,42 @@
+name: Build Executable
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11" # PyInstaller generally works well with 3.11
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build with PyInstaller
+      run: |
+        # Build the GUI version
+        pyinstaller --noconfirm --onedir --windowed --icon=NONE --add-data "templates;templates" --name NTE-Auto-Fish-GUI start_gui.py
+        
+        # Build the headless version (optional)
+        pyinstaller --noconfirm --onedir --console --icon=NONE --add-data "templates;templates" --name NTE-Auto-Fish-CLI main.py
+
+    - name: Upload GUI Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: NTE-Auto-Fish-Windows
+        path: |
+          dist/NTE-Auto-Fish-GUI
+          dist/NTE-Auto-Fish-CLI
