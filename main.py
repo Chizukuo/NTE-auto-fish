@@ -32,7 +32,11 @@ logging.basicConfig(
 )
 log = logging.getLogger("NTEFish")
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+# 冻结为 EXE 时，__file__ 指向临时解压目录；模板文件应与 exe 同目录
+if getattr(sys, 'frozen', False):
+    os.chdir(os.path.dirname(sys.executable))
+else:
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 class NTEFishingBot:
@@ -306,4 +310,3 @@ if __name__ == "__main__":
     bot = NTEFishingBot()
     bot.calibrate()
     bot.run()
-()

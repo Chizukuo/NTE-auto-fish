@@ -28,7 +28,6 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-*.sweed
 .hypothesis/
 .pytest_cache/
 
@@ -57,3 +56,4 @@ fishing_bot.log
 fishing_data.csv
 settings.json
 *.log
+tools/

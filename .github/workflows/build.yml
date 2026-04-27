@@ -17,7 +17,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11" # PyInstaller generally works well with 3.11
+        python-version: "3.11"
 
     - name: Install dependencies
       run: |
@@ -25,22 +25,61 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
 
-    - name: Build with PyInstaller
+    - name: Build GUI (single EXE)
+      shell: bash
       run: |
-        # Build the GUI version
-        pyinstaller --noconfirm --onedir --windowed --icon=NONE --exclude-module tkinter --exclude-module unittest --exclude-module email --exclude-module http --exclude-module xml --exclude-module pydoc --exclude-module multiprocessing --add-data "templates;templates" --name NTE-Auto-Fish start_gui.py
-        
-        # Build the headless version (optional)
-        pyinstaller --noconfirm --onedir --console --icon=NONE --exclude-module tkinter --exclude-module unittest --exclude-module email --exclude-module http --exclude-module xml --exclude-module pydoc --exclude-module multiprocessing --add-data "templates;templates" --name NTE-Auto-Fish-CLI main.py
+        pyinstaller --noconfirm --onefile --windowed --icon=NONE \
+          --exclude-module tkinter \
+          --exclude-module unittest \
+          --exclude-module test \
+          --exclude-module email \
+          --exclude-module http \
+          --exclude-module xml \
+          --exclude-module pydoc \
+          --exclude-module multiprocessing \
+          --exclude-module asyncio \
+          --exclude-module sqlite3 \
+          --exclude-module lib2to3 \
+          --exclude-module distutils \
+          --exclude-module setuptools \
+          --exclude-module _decimal \
+          --exclude-module _lzma \
+          --exclude-module _bz2 \
+          --name NTE-Auto-Fish \
+          start_gui.py
+
+    - name: Build CLI (single EXE)
+      shell: bash
+      run: |
+        pyinstaller --noconfirm --onefile --console --icon=NONE \
+          --exclude-module tkinter \
+          --exclude-module unittest \
+          --exclude-module test \
+          --exclude-module email \
+          --exclude-module http \
+          --exclude-module xml \
+          --exclude-module pydoc \
+          --exclude-module multiprocessing \
+          --exclude-module asyncio \
+          --exclude-module sqlite3 \
+          --exclude-module lib2to3 \
+          --exclude-module distutils \
+          --exclude-module setuptools \
+          --exclude-module _decimal \
+          --exclude-module _lzma \
+          --exclude-module _bz2 \
+          --exclude-module dearpygui \
+          --name NTE-Auto-Fish-CLI \
+          main.py
 
     - name: Upload GUI Artifact
       uses: actions/upload-artifact@v4
       with:
         name: NTE-Auto-Fish-GUI-Windows
-        path: dist/NTE-Auto-Fish
+        path: dist/NTE-Auto-Fish.exe
 
     - name: Upload CLI Artifact
       uses: actions/upload-artifact@v4
       with:
         name: NTE-Auto-Fish-CLI-Windows
-        path: dist/NTE-Auto-Fish-CLI
+        path: dist/NTE-Auto-Fish-CLI.exe
