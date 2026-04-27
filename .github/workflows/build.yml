@@ -28,15 +28,19 @@ jobs:
     - name: Build with PyInstaller
       run: |
         # Build the GUI version
-        pyinstaller --noconfirm --onedir --windowed --icon=NONE --add-data "templates;templates" --name NTE-Auto-Fish start_gui.py
+        pyinstaller --noconfirm --onedir --windowed --icon=NONE --exclude-module tkinter --exclude-module unittest --exclude-module email --exclude-module http --exclude-module xml --exclude-module pydoc --exclude-module multiprocessing --add-data "templates;templates" --name NTE-Auto-Fish start_gui.py
         
         # Build the headless version (optional)
-        pyinstaller --noconfirm --onedir --console --icon=NONE --add-data "templates;templates" --name NTE-Auto-Fish-CLI main.py
+        pyinstaller --noconfirm --onedir --console --icon=NONE --exclude-module tkinter --exclude-module unittest --exclude-module email --exclude-module http --exclude-module xml --exclude-module pydoc --exclude-module multiprocessing --add-data "templates;templates" --name NTE-Auto-Fish-CLI main.py
 
     - name: Upload GUI Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: NTE-Auto-Fish-Windows
-        path: |
-          dist/NTE-Auto-Fish
-          dist/NTE-Auto-Fish-CLI
+        name: NTE-Auto-Fish-GUI-Windows
+        path: dist/NTE-Auto-Fish
+
+    - name: Upload CLI Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: NTE-Auto-Fish-CLI-Windows
+        path: dist/NTE-Auto-Fish-CLI
