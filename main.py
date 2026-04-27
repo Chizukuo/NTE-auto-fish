@@ -273,12 +273,13 @@ class NTEFishingBot:
             self._lost_frames += 1
             action = "LOST"
 
-        # 无论是否跟丢，都强制写入 CSV
-        c_str = f"{cursor_x}" if cursor_x is not None else "None"
-        t_str = f"{target_x}" if target_x is not None else "None"
-        with open("fishing_data.csv", "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow([f"{time.time():.3f}", c_str, t_str, f"{error:.1f}", f"{output:.3f}", action])
+        # 无论是否跟丢，如果开启 debug_mode，都强制写入 CSV
+        if self.cfg.debug_mode:
+            c_str = f"{cursor_x}" if cursor_x is not None else "None"
+            t_str = f"{target_x}" if target_x is not None else "None"
+            with open("fishing_data.csv", "a", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([f"{time.time():.3f}", c_str, t_str, f"{error:.1f}", f"{output:.3f}", action])
 
         if self._lost_frames >= self.cfg.timing.lost_frames_threshold:
             self._log(

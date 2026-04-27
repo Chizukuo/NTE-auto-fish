@@ -108,10 +108,10 @@ class AppConfig:
     keys:        KeyConfig = field(default_factory=KeyConfig)
     min_blue_pixels: int = 300
     result_close_method: str = 'click'
+    debug_mode: bool = False
 
-
-CFG = AppConfig()
- with open(path, "w", encoding="utf-8") as f:
+    def save(self, path="settings.json"):
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(asdict(self), f, indent=4)
 
     def load(self, path="settings.json"):

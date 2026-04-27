@@ -20,7 +20,7 @@
 ## 🚀 使用说明
 
 ### 方法 1：使用预编译的 EXE（推荐给普通用户）
-在项目的 [Releases](https://github.com/) 页面下载最新构建的压缩包，解压后直接以**管理员权限**运行 `start_gui.exe` 即可，无需安装 Python 环境。
+在项目的 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 页面下载最新构建的压缩包，解压后直接以**管理员权限**运行 `NTE-Auto-Fish.exe` 即可，无需安装 Python 环境。
 
 ### 方法 2：源码运行（面向开发者）
 1. **安装依赖**:

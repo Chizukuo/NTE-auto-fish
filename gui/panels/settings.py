@@ -77,6 +77,8 @@ def create_settings(bridge: BotBridge):
                                  callback=lambda s, d: _set(CFG.timing, 'result_wait_secs', d))
             dpg.add_input_int(label="Min Blue Pixels", default_value=CFG.min_blue_pixels,
                               callback=lambda s, d: _set(CFG, 'min_blue_pixels', d))
+            dpg.add_checkbox(label="Debug Mode (Verbose Log & CSV)", default_value=CFG.debug_mode,
+                             callback=lambda s, d: _set(CFG, 'debug_mode', d))
 
 
 def _set(obj, attr: str, val):
