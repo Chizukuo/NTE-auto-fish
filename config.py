@@ -28,10 +28,10 @@ class HsvConfig:
         default_factory=lambda: HsvRange((100, 140, 140), (130, 255, 255)))
     # 进度条安全区（青绿色）
     safe_zone: HsvRange = field(
-        default_factory=lambda: HsvRange((75, 100, 100), (100, 255, 255)))
+        default_factory=lambda: HsvRange((75, 190, 190), (100, 255, 255)))
     # 游标线（黄色）
     cursor:    HsvRange = field(
-        default_factory=lambda: HsvRange((18,  80, 160), (40, 255, 255)))
+        default_factory=lambda: HsvRange((18, 115, 160), (40, 255, 255)))
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ class RoiConfig:
         "top": 1760, "left": 3400, "width": 440, "height": 360
     })
     bar: dict = field(default_factory=lambda: {
-        "top": 118, "left": 1209, "width": 1441, "height": 64
+        "top": 60, "left": 700, "width": 2440, "height": 160
     })
     ignore_margin_ratio: float = 0.02
 
@@ -68,7 +68,7 @@ class RoiConfig:
 class TimingConfig:
     cast_animation_secs: float = 1.8
     bite_timeout_secs: float = 45.0
-    lost_frames_threshold: int = 50
+    lost_frames_threshold: int = 40
     result_wait_secs: float = 2.2
     key_press_duration: float = 0.05
     waiting_poll_interval: float = 0.05
@@ -119,11 +119,18 @@ class AppConfig:
     min_blue_pixels: int = 300
     result_close_method: str = 'click'
     debug_mode: bool = False
-    always_on_top: bool = False
+    always_on_top: bool = True
 
     def save(self, path="settings.json"):
         with open(path, "w", encoding="utf-8") as f:
             json.dump(asdict(self), f, indent=4)
+
+    def reset(self, path="settings.json"):
+        """重置配置为默认值并保存"""
+        default_cfg = AppConfig()
+        for f in self.__dataclass_fields__:
+            setattr(self, f, getattr(default_cfg, f))
+        self.save(path)
 
     def load(self, path="settings.json"):
         if not os.path.exists(path):
