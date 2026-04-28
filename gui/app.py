@@ -3,9 +3,11 @@ gui/app.py — DearPyGui 主窗口
 启动方式：python start_gui.py
 """
 import threading
+import keyboard
 
 import dearpygui.dearpygui as dpg
 
+from config import CFG
 from gui.bridge import BotBridge
 from gui.panels.dashboard import create_dashboard, update_dashboard_ui
 from gui.panels.logs import create_logs, update_logs_ui
@@ -20,12 +22,14 @@ class FishingGUI:
         self.bot_thread: threading.Thread | None = None
 
         self._setup_dpg()
+        self._setup_hotkeys()
         self._create_windows()
 
     def _setup_dpg(self):
         dpg.create_context()
         dpg.create_viewport(title='NTE Auto-Fish Control Center',
-                            width=1000, height=750)
+                            width=1000, height=750,
+                            always_on_top=CFG.always_on_top)
         dpg.setup_dearpygui()
 
         with dpg.theme() as theme:
@@ -62,6 +66,23 @@ class FishingGUI:
 
         dpg.set_primary_window("PrimaryWindow", True)
         self._start_bot()
+
+    def _setup_hotkeys(self):
+        try:
+            keyboard.add_hotkey(CFG.hotkeys.toggle, self._toggle_bot_hotkey)
+            keyboard.add_hotkey(CFG.hotkeys.stop, self._stop_bot_hotkey)
+        except Exception as e:
+            self.bridge.push_log(f"Failed to register hotkeys: {e}")
+
+    def _toggle_bot_hotkey(self):
+        status = self.bridge.latest_status()
+        if status.is_running:
+            self.bridge.send_cmd("pause")
+        else:
+            self.bridge.send_cmd("resume")
+
+    def _stop_bot_hotkey(self):
+        self.bridge.send_cmd("stop")
 
     def _start_bot(self):
         if self.bot_thread and self.bot_thread.is_alive():

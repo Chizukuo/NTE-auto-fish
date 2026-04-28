@@ -95,6 +95,12 @@ class KeyConfig:
     exit: str = 'esc'
 
 
+@dataclass
+class HotkeyConfig:
+    toggle: str = 'f8'
+    stop:   str = 'f12'
+
+
 # ---------------------------------------------------------------------------
 # 顶层配置对象（全局单例）
 # ---------------------------------------------------------------------------
@@ -106,9 +112,11 @@ class AppConfig:
     timing:      TimingConfig = field(default_factory=TimingConfig)
     calibration: CalibrationConfig = field(default_factory=CalibrationConfig)
     keys:        KeyConfig = field(default_factory=KeyConfig)
+    hotkeys:     HotkeyConfig = field(default_factory=HotkeyConfig)
     min_blue_pixels: int = 300
     result_close_method: str = 'click'
     debug_mode: bool = False
+    always_on_top: bool = False
 
     def save(self, path="settings.json"):
         with open(path, "w", encoding="utf-8") as f:

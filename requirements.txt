@@ -3,3 +3,4 @@ numpy
 mss
 pydirectinput
 dearpygui
+keyboard

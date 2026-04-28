@@ -77,8 +77,23 @@ def create_settings(bridge: BotBridge):
                                  callback=lambda s, d: _set(CFG.timing, 'result_wait_secs', d))
             dpg.add_input_int(label="Min Blue Pixels", default_value=CFG.min_blue_pixels,
                               callback=lambda s, d: _set(CFG, 'min_blue_pixels', d))
+            dpg.add_checkbox(label="Always on Top", default_value=CFG.always_on_top,
+                             callback=lambda s, d: _on_top_changed(d))
             dpg.add_checkbox(label="Debug Mode (Verbose Log & CSV)", default_value=CFG.debug_mode,
                              callback=lambda s, d: _set(CFG, 'debug_mode', d))
+
+        # ---- Hotkeys ----
+        with dpg.collapsing_header(label="Global Hotkeys"):
+            dpg.add_text("Restart/Pause: Toggle bot running state", color=(200, 200, 200))
+            dpg.add_input_text(label="Toggle Bot (e.g. f8)", default_value=CFG.hotkeys.toggle,
+                               callback=lambda s, d: _set(CFG.hotkeys, 'toggle', d))
+            dpg.add_input_text(label="Stop Bot (e.g. f12)", default_value=CFG.hotkeys.stop,
+                               callback=lambda s, d: _set(CFG.hotkeys, 'stop', d))
+
+
+def _on_top_changed(val):
+    CFG.always_on_top = val
+    dpg.set_viewport_always_on_top(val)
 
 
 def _set(obj, attr: str, val):
