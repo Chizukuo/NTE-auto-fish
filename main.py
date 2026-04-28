@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 import time
+import ctypes
 from typing import TYPE_CHECKING, Optional
 
 try:
@@ -75,6 +76,8 @@ class NTEFishingBot:
         self._session_start = time.time()
         self._is_paused = False
         self._stop_flag = False
+        self._fps = 0.0
+        self._last_time = time.time()
 
         self._log("Bot initialized.")
 
@@ -97,6 +100,7 @@ class NTEFishingBot:
             cursor_x=self._cursor_x_rel,
             target_x=self._target_x_rel,
             bar_width=self._roi_bar["width"],
+            fps=self._fps,
             is_running=not self._is_paused,
         ))
 
@@ -214,8 +218,17 @@ class NTEFishingBot:
     def run(self) -> None:
         self._log("Main loop started.")
         self._session_start = time.time()
+        self._last_time = time.time()
         try:
             while not self._stop_flag:
+                now = time.time()
+                dt = now - self._last_time
+                self._last_time = now
+                if dt > 0:
+                    current_fps = 1.0 / dt
+                    # Simple EMA to smooth the FPS display
+                    self._fps = self._fps * 0.9 + current_fps * 0.1
+
                 self._poll_commands()
                 self._push_status()
 
@@ -317,6 +330,13 @@ class NTEFishingBot:
             self._lost_frames += 1
             action = "LOST"
 
+            # Log specific loss reason every 10 frames to avoid spamming but keep user informed
+            if self._lost_frames % 10 == 0:
+                missing = []
+                if cursor_x is None: missing.append("Cursor")
+                if target_x is None: missing.append("SafeZone")
+                self._log(f"[STRUGGLING] Missing: {', '.join(missing)} ({self._lost_frames}/{self.cfg.timing.lost_frames_threshold})", logging.DEBUG)
+
         # 无论是否跟丢，如果开启 debug_mode，都强制写入 CSV
         if self.cfg.debug_mode:
             c_str = f"{cursor_x}" if cursor_x is not None else "None"
@@ -326,8 +346,10 @@ class NTEFishingBot:
                 writer.writerow([f"{time.time():.3f}", c_str, t_str, f"{error:.1f}", f"{output:.3f}", action])
 
         if self._lost_frames >= self.cfg.timing.lost_frames_threshold:
-            self._log(
-                f"[STRUGGLING] Lost {self._lost_frames} frames, done.")
+            missing = []
+            if cursor_x is None: missing.append("Cursor")
+            if target_x is None: missing.append("SafeZone")
+            self._log(f"[STRUGGLING] Lost track of {', '.join(missing)} for too long ({self._lost_frames} frames). Exiting.")
             self.input.release_all()
             self.sm.transition(FishingState.RESULT)
         
@@ -350,6 +372,13 @@ class NTEFishingBot:
 
 
 if __name__ == "__main__":
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
     bot = NTEFishingBot()
     bot.calibrate()
     bot.run()

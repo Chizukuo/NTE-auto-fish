@@ -34,86 +34,98 @@ def create_dashboard(bridge: BotBridge):
             dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255))
 
     with dpg.group():
-        # --- Top Summary Bar ---
-        with dpg.child_window(height=80, border=False):
+        # --- Top Summary Bar (Glassmorphism inspired) ---
+        with dpg.child_window(height=90, border=False):
             with dpg.group(horizontal=True):
                 # Status Indicator Card
                 with dpg.group():
-                    dpg.add_text("BOT STATUS", color=(100, 200, 255))
+                    dpg.add_text("  BOT STATUS", color=(120, 210, 255))
                     with dpg.group(horizontal=True):
-                        dpg.add_button(tag="stat_running_indicator", label="PAUSED", width=120)
+                        dpg.add_spacer(width=10)
+                        dpg.add_button(tag="stat_running_indicator", label="PAUSED", width=130, height=30)
                         dpg.bind_item_theme("stat_running_indicator", _theme_paused)
-                        dpg.add_text("State:", color=(150, 150, 150))
+                        dpg.add_spacer(width=5)
+                        dpg.add_text("Current State:", color=(140, 145, 160))
                         dpg.add_text("IDLE", tag="stat_bot_state", color=(255, 255, 255))
                 
-                dpg.add_spacer(width=40)
+                dpg.add_spacer(width=60)
                 
                 # Stats Summary Card
                 with dpg.group():
-                    dpg.add_text("QUICK STATS", color=(100, 200, 255))
+                    dpg.add_text("  QUICK STATS", color=(120, 210, 255))
                     with dpg.group(horizontal=True):
-                        dpg.add_text("Fish:", color=(150, 150, 150))
+                        dpg.add_spacer(width=10)
+                        dpg.add_text("Fish Caught:", color=(140, 145, 160))
                         dpg.add_text("0", tag="stat_fish_count", color=(255, 255, 255))
-                        dpg.add_spacer(width=20)
-                        dpg.add_text("Time:", color=(150, 150, 150))
+                        dpg.add_spacer(width=30)
+                        dpg.add_text("Session Time:", color=(140, 145, 160))
                         dpg.add_text("00:00:00", tag="stat_session_time", color=(255, 255, 255))
 
-        dpg.add_separator()
         dpg.add_spacer(height=10)
+        dpg.add_separator()
+        dpg.add_spacer(height=15)
 
         # --- Main Controls ---
         with dpg.group(horizontal=True):
-            dpg.add_button(label="START", width=120, height=35,
+            dpg.add_button(label=" RESUME BOT (F8) ", width=180, height=40,
                            callback=lambda: bridge.send_cmd("resume"))
-            dpg.add_button(label="PAUSE", width=120, height=35,
+            dpg.add_button(label=" PAUSE BOT ", width=180, height=40,
                            callback=lambda: bridge.send_cmd("pause"))
-            dpg.add_button(label="CALIBRATE", width=120, height=35,
+            dpg.add_button(label=" RE-CALIBRATE ", width=180, height=40,
                            callback=lambda: bridge.send_cmd("recalibrate"))
 
-        dpg.add_spacer(height=15)
+        dpg.add_spacer(height=25)
 
         # --- Visualizers Section ---
         with dpg.group(horizontal=True):
             # Left: PID Output Card
-            with dpg.child_window(width=400, height=180, border=True):
-                dpg.add_text("PID OUTPUT (REAL-TIME)", color=(100, 255, 200))
+            with dpg.child_window(width=450, height=220, border=True):
+                dpg.add_text("  PID CONTROL LOOP OUTPUT", color=(100, 255, 200))
+                dpg.add_spacer(height=5)
                 with dpg.plot(no_title=True, no_menus=True, no_box_select=True,
-                              height=130, width=-1, tag="pid_plot"):
+                               height=160, width=-1, tag="pid_plot"):
                     dpg.add_plot_axis(dpg.mvXAxis, no_gridlines=True, no_tick_labels=True)
                     with dpg.plot_axis(dpg.mvYAxis, tag="pid_y"):
                         dpg.add_line_series(list(range(100)), _pid_history,
                                             label="Output", tag="pid_series")
-                    dpg.set_axis_limits("pid_y", -100, 100)
+                    dpg.set_axis_limits("pid_y", -110, 110)
 
             # Right: Vision/Analysis Card
-            with dpg.child_window(width=-1, height=180, border=True):
-                dpg.add_text("TELEMETRY", color=(255, 200, 100))
+            with dpg.child_window(width=-1, height=220, border=True):
+                dpg.add_text("  REAL-TIME TELEMETRY", color=(255, 200, 100))
                 dpg.add_separator()
-                dpg.add_spacer(height=5)
+                dpg.add_spacer(height=10)
                 with dpg.group(horizontal=True):
-                    dpg.add_text("Cursor X:", color=(150, 150, 150))
-                    dpg.add_text("N/A", tag="tele_cursor_x")
+                    dpg.add_text("    Cursor Position (Rel):", color=(140, 145, 160))
+                    dpg.add_text("N/A", tag="tele_cursor_x", color=(255, 255, 255))
                 with dpg.group(horizontal=True):
-                    dpg.add_text("Target X:", color=(150, 150, 150))
-                    dpg.add_text("N/A", tag="tele_target_x")
+                    dpg.add_text("    Target Position (Rel):", color=(140, 145, 160))
+                    dpg.add_text("N/A", tag="tele_target_x", color=(255, 255, 255))
+                dpg.add_spacer(height=10)
                 with dpg.group(horizontal=True):
-                    dpg.add_text("Process FPS:", color=(150, 150, 150))
-                    dpg.add_text("0.0", tag="tele_fps")
+                    dpg.add_text("    Processing Frequency:", color=(140, 145, 160))
+                    dpg.add_text("0.0", tag="tele_fps", color=(100, 255, 150))
+                    dpg.add_text("Hz", color=(100, 105, 120))
 
-        dpg.add_spacer(height=20)
+        dpg.add_spacer(height=25)
 
         # --- Bottom: Progress Bar Visualizer (Full Width) ---
-        dpg.add_text("LIVE FISHING TRACKER", color=(255, 100, 255))
-        with dpg.child_window(height=100, border=True):
-            with dpg.drawlist(width=900, height=80, tag="visualizer"):
-                dpg.draw_rectangle((0, 25), (900, 55),
-                                   color=(60, 60, 70), fill=(30, 32, 45), rounding=15)
-                dpg.draw_rectangle((350, 25), (550, 55),
-                                   color=(0, 255, 220, 200), fill=(0, 255, 200, 80),
-                                   rounding=10, tag="vis_safe_zone")
-                dpg.draw_line((450, 15), (450, 65),
-                              color=(255, 255, 0), thickness=4, tag="vis_cursor")
-                dpg.draw_circle((450, 40), 6, color=(255, 255, 255), fill=(255, 255, 0), tag="vis_cursor_dot")
+        dpg.add_text("  LIVE VISION TRACKER", color=(255, 100, 255))
+        with dpg.child_window(height=110, border=True):
+            with dpg.drawlist(width=1200, height=80, tag="visualizer"):
+                # Background Track
+                dpg.draw_rectangle((0, 20), (1200, 60),
+                                   color=(50, 52, 65), fill=(22, 24, 34), rounding=20)
+                
+                # Safe Zone (Target)
+                dpg.draw_rectangle((450, 20), (750, 60),
+                                   color=(0, 255, 220, 200), fill=(0, 255, 200, 60),
+                                   rounding=15, tag="vis_safe_zone")
+                
+                # Cursor (Player)
+                dpg.draw_line((600, 10), (600, 70),
+                               color=(255, 255, 0), thickness=5, tag="vis_cursor")
+                dpg.draw_circle((600, 40), 8, color=(255, 255, 255), fill=(255, 255, 0), tag="vis_cursor_dot")
 
 
 def update_dashboard_ui(bridge: BotBridge):

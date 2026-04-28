@@ -4,6 +4,8 @@ gui/app.py — DearPyGui 主窗口
 """
 import threading
 import keyboard
+import ctypes
+import os
 
 import dearpygui.dearpygui as dpg
 
@@ -17,6 +19,7 @@ from main import NTEFishingBot
 
 class FishingGUI:
     def __init__(self):
+        self._enable_hidpi()
         self.bridge = BotBridge()
         self.bot = NTEFishingBot(bridge=self.bridge)
         self.bot_thread: threading.Thread | None = None
@@ -25,78 +28,90 @@ class FishingGUI:
         self._setup_hotkeys()
         self._create_windows()
 
+    def _enable_hidpi(self):
+        """Enable High DPI awareness on Windows."""
+        try:
+            # SetProcessDpiAwareness(1) -> Process_System_DPI_Aware
+            # SetProcessDpiAwareness(2) -> Process_Per_Monitor_DPI_Aware
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except Exception:
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception:
+                pass
+
     def _setup_dpg(self):
         dpg.create_context()
-        # Increased viewport size for 4K screens and added font scale
+        
+        # Enhanced viewport configuration
         dpg.create_viewport(title='NTE Auto-Fish Control Center',
-                            width=1200, height=800,
+                            width=1280, height=850,
                             always_on_top=CFG.always_on_top)
         dpg.setup_dearpygui()
         
-        # Set global font scale for better visibility on High DPI (4K) screens
-        dpg.set_global_font_scale(1.25)
-
-        # Modern Dark Theme with Accent Colors
+        # Responsive global font scale
+        dpg.set_global_font_scale(1.0) # Base scale, we will rely on DPI awareness
+        
+        # Premium Modern Dark Theme
         with dpg.theme() as theme:
             with dpg.theme_component(dpg.mvAll):
                 # Layout & Spacing
-                dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 15, 15)
-                dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 8, 6)
-                dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 10, 10)
+                dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 16, 16)
+                dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 10, 8)
+                dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 12, 12)
                 dpg.add_theme_style(dpg.mvStyleVar_IndentSpacing, 25)
-                dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize, 12)
-                dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 8)
-                dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6)
-                dpg.add_theme_style(dpg.mvStyleVar_GrabRounding, 6)
-                dpg.add_theme_style(dpg.mvStyleVar_TabRounding, 6)
-                dpg.add_theme_style(dpg.mvStyleVar_PopupRounding, 8)
-                dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 8)
+                dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize, 14)
+                dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 12)
+                dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 8)
+                dpg.add_theme_style(dpg.mvStyleVar_GrabRounding, 8)
+                dpg.add_theme_style(dpg.mvStyleVar_TabRounding, 8)
+                dpg.add_theme_style(dpg.mvStyleVar_PopupRounding, 12)
+                dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 12)
 
-                # Color Palette (Midnight Blue & Cyan Accent)
+                # Color Palette (Deep Indigo & Electric Cyan)
                 # Backgrounds
-                dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (15, 16, 22))
-                dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (24, 25, 34))
-                dpg.add_theme_color(dpg.mvThemeCol_PopupBg, (24, 25, 34))
-                dpg.add_theme_color(dpg.mvThemeCol_Border, (40, 42, 54, 150))
+                dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (10, 11, 16))
+                dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (18, 20, 28, 200)) # Slight transparency
+                dpg.add_theme_color(dpg.mvThemeCol_PopupBg, (24, 26, 36))
+                dpg.add_theme_color(dpg.mvThemeCol_Border, (45, 48, 65, 180))
                 
                 # Header & Tabs
-                dpg.add_theme_color(dpg.mvThemeCol_Header, (45, 55, 90))
-                dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (65, 80, 140))
-                dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (80, 100, 180))
-                dpg.add_theme_color(dpg.mvThemeCol_Tab, (30, 32, 45))
-                dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (50, 60, 120))
-                dpg.add_theme_color(dpg.mvThemeCol_TabActive, (70, 90, 200))
-                dpg.add_theme_color(dpg.mvThemeCol_TabUnfocused, (25, 27, 38))
-                dpg.add_theme_color(dpg.mvThemeCol_TabUnfocusedActive, (40, 42, 60))
+                dpg.add_theme_color(dpg.mvThemeCol_Header, (40, 50, 85))
+                dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (60, 75, 130))
+                dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (70, 95, 180))
+                dpg.add_theme_color(dpg.mvThemeCol_Tab, (20, 22, 32))
+                dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (55, 65, 120))
+                dpg.add_theme_color(dpg.mvThemeCol_TabActive, (75, 100, 220))
+                dpg.add_theme_color(dpg.mvThemeCol_TabUnfocused, (15, 16, 24))
+                dpg.add_theme_color(dpg.mvThemeCol_TabUnfocusedActive, (35, 40, 65))
 
                 # Buttons
-                dpg.add_theme_color(dpg.mvThemeCol_Button, (45, 50, 80))
-                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (60, 80, 160))
-                dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (80, 110, 220))
+                dpg.add_theme_color(dpg.mvThemeCol_Button, (40, 45, 75))
+                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (65, 85, 180))
+                dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (85, 110, 240))
                 
                 # Frame & Inputs
-                dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (35, 38, 55))
-                dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (45, 50, 75))
-                dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (55, 65, 100))
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (28, 30, 45))
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (40, 45, 65))
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (50, 60, 95))
                 
                 # Sliders & Grabs
-                dpg.add_theme_color(dpg.mvThemeCol_SliderGrab, (0, 180, 255))
-                dpg.add_theme_color(dpg.mvThemeCol_SliderGrabActive, (100, 220, 255))
+                dpg.add_theme_color(dpg.mvThemeCol_SliderGrab, (0, 195, 255))
+                dpg.add_theme_color(dpg.mvThemeCol_SliderGrabActive, (80, 225, 255))
                 
-                # Text
-                dpg.add_theme_color(dpg.mvThemeCol_Text, (220, 225, 240))
-                dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, (100, 105, 130))
+                dpg.add_theme_color(dpg.mvThemeCol_Text, (225, 230, 250))
+                dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, (110, 115, 145))
 
         dpg.bind_theme(theme)
 
     def _create_windows(self):
         with dpg.window(tag="PrimaryWindow", no_close=True, no_move=True):
             with dpg.tab_bar():
-                with dpg.tab(label="Dashboard"):
+                with dpg.tab(label=" DASHBOARD "):
                     create_dashboard(self.bridge)
-                with dpg.tab(label="Settings"):
+                with dpg.tab(label=" SETTINGS "):
                     create_settings(self.bridge)
-                with dpg.tab(label="Logs"):
+                with dpg.tab(label=" ACTIVITY LOGS "):
                     create_logs(self.bridge)
 
         dpg.set_primary_window("PrimaryWindow", True)
@@ -134,7 +149,6 @@ class FishingGUI:
             update_logs_ui(self.bridge)
             dpg.render_dearpygui_frame()
         dpg.destroy_context()
-
 
 
 if __name__ == "__main__":
