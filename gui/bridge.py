@@ -7,7 +7,7 @@ Bot 线程通过此模块发布状态更新；GUI 主线程消费更新来刷新
 import dataclasses
 import queue
 import time
-from typing import Optional
+from typing import Optional, Tuple
 
 from modules.logic import FishingState
 
@@ -22,6 +22,8 @@ class BotStatus:
     cursor_x:    Optional[int] = None  # 进度条内游标 X（像素）
     target_x:    Optional[int] = None  # 进度条内安全区中心 X（像素）
     bar_width:   int = 0    # 进度条 ROI 宽度（归一化用）
+    button_roi:  Tuple[int, int, int, int] = (0, 0, 0, 0)
+    bar_roi:     Tuple[int, int, int, int] = (0, 0, 0, 0)
     fps:         float = 0.0  # STRUGGLING 帧率
     is_running:  bool = False
 

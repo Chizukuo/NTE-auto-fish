@@ -5,13 +5,21 @@ main.py — NTE 自动钓鱼主程序
   - GUI:      python start_gui.py（通过 BotBridge 通信）
 """
 import csv
+import json
 import logging
 import os
 import sys
 import time
 from typing import TYPE_CHECKING, Optional
 
-import cv2
+try:
+    import cv2
+except ImportError as exc:
+    raise ImportError(
+        "Missing required dependency 'opencv-python-headless'. "
+        "Please install dependencies with `pip install -r requirements.txt` "
+        "or `pip install opencv-python-headless`."
+    ) from exc
 
 from config import CFG, AppConfig
 from modules.io_module import CaptureModule, InputModule
@@ -51,6 +59,7 @@ class NTEFishingBot:
             kp=cfg.pid.kp, ki=cfg.pid.ki, kd=cfg.pid.kd,
             integral_limit=cfg.pid.integral_limit,
             deadband=cfg.pid.deadband,
+            adaptive=cfg.pid.adaptive,
         )
 
         self._roi_button: dict = dict(cfg.roi.button)
@@ -126,11 +135,12 @@ class NTEFishingBot:
             }
 
         def get_fallback_bar():
+            # 使用用户提供的 4K 捕获基准 (118, 1209, 1441, 64)
             base_w, base_h = 3840, 2160
             scale_w, scale_h = self._screen_w / base_w, self._screen_h / base_h
             return {
-                "top": int(60 * scale_h), "left": int(700 * scale_w),
-                "width": int(2440 * scale_w), "height": int(160 * scale_h),
+                "top": int(118 * scale_h), "left": int(1209 * scale_w),
+                "width": int(1441 * scale_w), "height": int(64 * scale_h),
             }
 
         tmpl_f = cv2.imread("templates/button_f.png")
@@ -151,6 +161,31 @@ class NTEFishingBot:
                 self._roi_button = get_fallback_button()
                 self._log(f"F Button ROI (Fallback) -> {self._roi_button}")
 
+        # 优先从 progress.json 加载精确比例
+        progress_json = os.path.join(os.path.dirname(__file__), "templates", "progress.json")
+        if os.path.exists(progress_json):
+            try:
+                with open(progress_json, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                if data and isinstance(data, list) and "ratios" in data[0]:
+                    r = data[0]["ratios"]
+                    self._roi_bar = {
+                        "top": round(self._screen_h * r["top"]),
+                        "left": round(self._screen_w * r["left"]),
+                        "width": round(self._screen_w * r["width"]),
+                        "height": round(self._screen_h * r["height"]),
+                    }
+                    self._log(f"[Calibration] Loaded progress ROI from {progress_json} -> {self._roi_bar}")
+                    self._log("[Calibration] Done.")
+                    return
+                self._log(
+                    f"[Calibration] {progress_json} does not contain valid ratio data, using template/fallback.",
+                    logging.WARNING)
+            except Exception as e:
+                self._log(f"Failed to load {progress_json}: {e}", logging.ERROR)
+        else:
+            self._log(f"{progress_json} not found, using template/fallback.", logging.WARNING)
+
         tmpl_bar = cv2.imread("templates/bar_icon_left.png")
         if tmpl_bar is None:
             self._log("templates/bar_icon_left.png not found, using resolution fallback.", logging.WARNING)
@@ -161,7 +196,8 @@ class NTEFishingBot:
                 x1, y1, x2, y2 = result
                 icon_h = y2 - y1
                 bar_left = x2 + 10
-                bar_width = int(self._screen_w * 0.52)
+                # 如果模板匹配成功，依然可以使用 4K 基准的比例宽度来限定，防止太宽
+                bar_width = int(self._screen_w * 0.375) # 1441/3840 ≈ 0.375
                 self._roi_bar = {
                     "top": max(0, y1 - pad), "left": max(0, bar_left - pad),
                     "width": bar_width + pad * 2, "height": icon_h + pad * 2,
@@ -241,10 +277,10 @@ class NTEFishingBot:
         bar_img = self.capture.grab_bgr(self._roi_bar)
         cursor_x, _ = self.vision.get_hsv_centroid_x(
             bar_img, self.cfg.hsv.cursor.lower, self.cfg.hsv.cursor.upper, 
-            ignore_margin_ratio=0.20, last_known_x=self._cursor_x_rel)
+            ignore_margin_ratio=0.02, last_known_x=self._cursor_x_rel)
         target_x, _ = self.vision.get_hsv_centroid_x(
             bar_img, self.cfg.hsv.safe_zone.lower, self.cfg.hsv.safe_zone.upper, 
-            ignore_margin_ratio=0.20, last_known_x=self._target_x_rel)
+            ignore_margin_ratio=0.02, last_known_x=self._target_x_rel)
 
         self._cursor_x_rel = cursor_x
         self._target_x_rel = target_x
@@ -254,6 +290,10 @@ class NTEFishingBot:
         error = 0.0
 
         if cursor_x is not None and target_x is not None:
+            self.pid.update_params(
+                kp=self.cfg.pid.kp, ki=self.cfg.pid.ki, kd=self.cfg.pid.kd,
+                deadband=self.cfg.pid.deadband, adaptive=self.cfg.pid.adaptive
+            )
             self._lost_frames = 0
             error = float(target_x) - float(cursor_x)
             output = self.pid.update(float(cursor_x), float(target_x))
@@ -290,6 +330,9 @@ class NTEFishingBot:
                 f"[STRUGGLING] Lost {self._lost_frames} frames, done.")
             self.input.release_all()
             self.sm.transition(FishingState.RESULT)
+        
+        # 显式控制采样频率，防止 CPU 占用过高并稳定 PID 计算 (替代了原先调试窗口 waitKey 的延迟作用)
+        time.sleep(self.cfg.timing.struggling_poll_interval)
 
     def _handle_result(self) -> None:
         self._fish_count += 1

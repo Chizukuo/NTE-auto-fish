@@ -44,6 +44,7 @@ class PidConfig:
     kd: float = 0.0
     integral_limit: float = 150.0
     deadband: float = 5.0
+    adaptive: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -55,8 +56,9 @@ class RoiConfig:
         "top": 1760, "left": 3400, "width": 440, "height": 360
     })
     bar: dict = field(default_factory=lambda: {
-        "top": 60, "left": 700, "width": 2440, "height": 160
+        "top": 118, "left": 1209, "width": 1441, "height": 64
     })
+    ignore_margin_ratio: float = 0.05
 
 
 # ---------------------------------------------------------------------------
@@ -70,6 +72,7 @@ class TimingConfig:
     result_wait_secs: float = 2.2
     key_press_duration: float = 0.05
     waiting_poll_interval: float = 0.05
+    struggling_poll_interval: float = 0.01  # 防止 CPU 占用过高，并稳定 PID 采样率
 
 
 # ---------------------------------------------------------------------------
