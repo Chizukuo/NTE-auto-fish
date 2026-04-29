@@ -66,6 +66,8 @@ class NTEFishingBot:
         self._roi_button: dict = dict(cfg.roi.button)
         self._roi_bar:    dict = dict(cfg.roi.bar)
         self._lost_frames: int = 0
+        self._lost_cursor_frames: int = 0
+        self._lost_target_frames: int = 0
         self._fish_count:  int = 0
         self._screen_w:    int = 0
         self._screen_h:    int = 0
@@ -271,6 +273,8 @@ class NTEFishingBot:
                              self.cfg.timing.key_press_duration)
             self.pid.reset()
             self._lost_frames = 0
+            self._lost_cursor_frames = 0
+            self._lost_target_frames = 0
             
             # 清空上一条鱼的坐标记忆，强制时空连贯性算法从最中间（50%）重新开始寻找！
             self._cursor_x_rel = None
@@ -308,6 +312,8 @@ class NTEFishingBot:
                 deadband=self.cfg.pid.deadband, adaptive=self.cfg.pid.adaptive
             )
             self._lost_frames = 0
+            self._lost_cursor_frames = 0
+            self._lost_target_frames = 0
             error = float(target_x) - float(cursor_x)
             output = self.pid.update(float(cursor_x), float(target_x))
             self._last_pid_out = output
@@ -327,7 +333,15 @@ class NTEFishingBot:
             self.input.release(self.cfg.keys.left)
             self.input.release(self.cfg.keys.right)
             self._last_pid_out = 0.0
-            self._lost_frames += 1
+            if cursor_x is None:
+                self._lost_cursor_frames += 1
+            else:
+                self._lost_cursor_frames = 0
+            if target_x is None:
+                self._lost_target_frames += 1
+            else:
+                self._lost_target_frames = 0
+            self._lost_frames = max(self._lost_cursor_frames, self._lost_target_frames)
             action = "LOST"
 
             # Log specific loss reason every 10 frames to avoid spamming but keep user informed
@@ -345,7 +359,8 @@ class NTEFishingBot:
                 writer = csv.writer(f)
                 writer.writerow([f"{time.time():.3f}", c_str, t_str, f"{error:.1f}", f"{output:.3f}", action])
 
-        if self._lost_frames >= self.cfg.timing.lost_frames_threshold:
+        if (self._lost_cursor_frames >= self.cfg.timing.lost_frames_threshold and
+                self._lost_target_frames >= self.cfg.timing.lost_frames_threshold):
             missing = []
             if cursor_x is None: missing.append("Cursor")
             if target_x is None: missing.append("SafeZone")
