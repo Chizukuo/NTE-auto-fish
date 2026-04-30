@@ -1,12 +1,12 @@
 <div align="center">
 
-# 🎣 NTE Auto-Fishing
+# NTE Auto-Fishing
 
 [English](README.md) | [简体中文](docs/README_zh.md) | [日本語](docs/README_ja.md)
 
-**A high-performance, intelligent automatic fishing bot for modern games.**
+**A visual, configurable auto-fishing assistant built for responsive game control.**
 
-Built with Python, OpenCV, MSS, and DearPyGui.
+Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 
 ---
 
@@ -16,64 +16,64 @@ Built with Python, OpenCV, MSS, and DearPyGui.
 
 </div>
 
-## 🌟 Highlights
+## Highlights
 
-- **Visual Control Panel (GUI)**: Real-time monitoring, PID tuning, and HSV threshold adjustment via a sleek DearPyGui interface.
-- **Persistence**: Save and load settings effortlessly from the GUI; configurations are automatically applied on launch.
-- **Intelligent Resolution Adaptation**: Multi-scale template matching with fallback to resolution-based coordinate estimation. Supports 1080p, 2K, 4K, and more.
-- **Performance Optimized**: Ultra-fast screen capture using `mss` and precise input simulation via `PyDirectInput`.
-- **Portable**: Available as a single-file executable—no Python environment or extraction required.
+- **Live control center**: Track bot state, fish count, session time, FPS, PID output, ROI data, and vision health in one GUI.
+- **Safer controls**: The GUI starts paused, handles stop commands urgently, and releases held keys during pause, stop, recalibration, and shutdown.
+- **Runtime tuning**: PID, HSV thresholds, timing, input keys, hotkeys, calibration, and debug options can be adjusted from the Settings tab.
+- **Resolution adaptation**: Multi-scale template matching and ratio-based fallback support common 1080p, 2K, 4K, and custom display sizes.
+- **Fast capture and input**: `mss` captures screen regions efficiently, while `PyDirectInput` sends game-friendly input events.
+- **Portable builds**: GitHub Actions builds single-file Windows executables for GUI and CLI workflows.
 
-## 📁 Project Structure
+## Project Structure
 
-| File/Folder | Description |
+| Path | Description |
 | :--- | :--- |
-| `start_gui.py` | Recommended entry point for the GUI version. |
-| `main.py` | Headless mode entry point and core bot logic. |
-| `config.py` | Global configuration management (PID, HSV, etc.). |
-| `gui/` | Interactive dashboard and setting panels. |
-| `modules/` | Core functional modules: IO, Vision, and Logic. |
+| `start_gui.py` | Recommended GUI entry point. |
+| `main.py` | Headless entry point and core bot loop. |
+| `config.py` | Runtime configuration for PID, HSV, keys, timing, and calibration. |
+| `gui/` | DearPyGui control center, panels, and thread-safe bridge. |
+| `modules/` | Capture, input, vision, and fishing logic modules. |
+| `templates/` | Optional template and ratio data for calibration. |
+| `tools/ratio_annotator.py` | Utility for creating ratio-based ROI JSON from screenshots. |
 
-## 🚀 Getting Started
+## Getting Started
 
-### Option 1: Prebuilt Executable (Recommended)
+### Option 1: Prebuilt Executable
+
 1. Download the latest `NTE-Auto-Fish.exe` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases).
-2. **Run as Administrator** (required for input simulation).
-3. (Optional) Enhance precision by placing `button_f.png` and `bar_icon_left.png` in a `templates/` folder next to the EXE.
+2. Run it as Administrator so simulated input can reach the game.
+3. Optional: place `button_f.png` and `bar_icon_left.png` in a `templates/` folder next to the executable for more precise calibration.
 
-### Option 2: Run from Source
-1. **Clone & Install**:
-   ```bash
-   git clone https://github.com/Chizukuo/NTE-auto-fish.git
-   cd NTE-auto-fish
-   pip install -r requirements.txt
-   ```
-2. **Templates**: Place your matching templates in the `templates/` directory.
-3. **Run**:
-   ```bash
-   # Launch GUI
-   python start_gui.py
-   
-   # Launch Headless
-   python main.py
-   ```
-   *Note: Always use an elevated terminal (Administrator).*
+### Option 2: Run From Source
 
-## ⚙️ Key Features
+```bash
+git clone https://github.com/Chizukuo/NTE-auto-fish.git
+cd NTE-auto-fish
+pip install -r requirements.txt
+```
 
-- **Dashboard**: Live telemetry including success count, runtime, and processing frequency.
-- **PID Tuning**: Dynamically adjust `Kp` and `Ki` to perfect the reeling response.
-- **HSV Calibration**: Calibrate color detection for Cyan (Safe Area), Yellow (Cursor), and Blue (Bite) to suit any lighting.
-- **Live Logs**: Integrated logging console for real-time diagnostics.
+Launch the GUI:
 
-## ⚠️ Requirements & Notes
+```bash
+python start_gui.py
+```
 
-- **Privileges**: Must run with Administrator privileges to interact with game windows.
-- **Display**: Use **Borderless Window** or **Windowed Fullscreen** for optimal capture reliability.
-- **CI/CD**: Fully automated builds via GitHub Actions.
+Launch headless mode:
+
+```bash
+python main.py
+```
+
+## Notes
+
+- Run from an elevated terminal on Windows.
+- Borderless window or windowed fullscreen usually gives the most reliable capture behavior.
+- Hotkeys are configurable in the GUI and re-register after editing.
+- Debug logging writes extra tracking data to `fishing_data.csv`.
 
 ---
 
 <div align="center">
-Built with high performance and reliability.
+Built for practical, low-friction automation.
 </div>

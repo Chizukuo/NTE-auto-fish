@@ -1,12 +1,12 @@
 <div align="center">
 
-# 🎣 NTE 自动钓鱼
+# NTE 自动钓鱼
 
 [English](../README.md) | [简体中文](README_zh.md) | [日本語](README_ja.md)
 
-**专为现代游戏设计的高性能、智能化自动钓鱼脚本。**
+**面向实时游戏控制的可视化、可调校自动钓鱼助手。**
 
-基于 Python、OpenCV、MSS 和 DearPyGui 构建。
+基于 Python、OpenCV、MSS、PyDirectInput 和 DearPyGui 构建。
 
 ---
 
@@ -16,64 +16,58 @@
 
 </div>
 
-## 🌟 项目亮点
+## 项目亮点
 
-- **可视化控制面板 (GUI)**：通过精美的 DearPyGui 界面进行实时状态监控、PID 参数微调及 HSV 颜色阈值设置。
-- **持久化配置**：支持在 GUI 中保存和加载设置，启动时自动应用上次的配置。
-- **智能分辨率适配**：支持多尺度模板匹配，并在匹配失败时自动回退至基于分辨率的坐标估算。完美适配 1080p、2K、4K 等多种分辨率。
-- **性能优化**：使用 `mss` 实现超快截屏，并通过 `PyDirectInput` 进行精准的键鼠模拟。
-- **便携性**：提供单文件可执行程序，无需安装 Python 环境或解压即可运行。
+- **实时控制台**：在 GUI 中查看状态、钓获数、会话时长、FPS、PID 输出、ROI 数据和视觉追踪健康度。
+- **更安全的控制流程**：界面启动后默认暂停；停止命令优先处理；暂停、停止、校准和退出时会释放已按住的按键。
+- **运行时调参**：PID、HSV 阈值、时序、输入按键、全局热键、校准和调试选项都可以在设置页调整。
+- **分辨率自适应**：结合多尺度模板匹配与比例回退数据，适配 1080p、2K、4K 以及更多自定义分辨率。
+- **高效截图与输入**：使用 `mss` 捕获屏幕区域，使用 `PyDirectInput` 发送更适合游戏环境的输入事件。
+- **便携构建**：GitHub Actions 会生成 GUI 和 CLI 两个单文件 Windows 可执行程序。
 
-## 📁 项目结构
+## 项目结构
 
-| 文件/文件夹 | 描述 |
+| 路径 | 说明 |
 | :--- | :--- |
-| `start_gui.py` | GUI 模式的推荐启动入口。 |
-| `main.py` | 无界面模式启动入口及核心逻辑。 |
-| `config.py` | 全局配置管理（PID、HSV 等）。 |
-| `gui/` | 交互式仪表盘与设置面板。 |
-| `modules/` | 核心功能模块：IO、视觉及逻辑处理。 |
+| `start_gui.py` | 推荐的 GUI 启动入口。 |
+| `main.py` | 无界面入口和核心运行循环。 |
+| `config.py` | PID、HSV、按键、时序和校准配置。 |
+| `gui/` | DearPyGui 控制中心、面板和线程安全桥接。 |
+| `modules/` | 截图、输入、视觉识别和钓鱼逻辑模块。 |
+| `templates/` | 可选模板和比例数据，用于校准。 |
+| `tools/ratio_annotator.py` | 从截图标注比例 ROI 的辅助工具。 |
 
-## 🚀 快速开始
+## 快速开始
 
-### 方式一：使用预编译程序（推荐）
-1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 页面下载最新的 `NTE-Auto-Fish.exe`。
-2. **以管理员身份运行**（模拟输入必须）。
-3. （可选）在 EXE 同级目录下创建 `templates/` 文件夹并放入 `button_f.png` 和 `bar_icon_left.png` 以提升匹配精度。
+### 方式一：使用预构建程序
+
+1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 下载最新的 `NTE-Auto-Fish.exe`。
+2. 以管理员身份运行，确保模拟输入可以进入游戏。
+3. 可选：在 EXE 同级目录创建 `templates/` 文件夹，并放入 `button_f.png` 与 `bar_icon_left.png`，以提高校准精度。
 
 ### 方式二：从源码运行
-1. **克隆并安装**：
-   ```bash
-   git clone https://github.com/Chizukuo/NTE-auto-fish.git
-   cd NTE-auto-fish
-   pip install -r requirements.txt
-   ```
-2. **准备模板**：将匹配模板放入 `templates/` 目录。
-3. **启动**：
-   ```bash
-   # 启动 GUI
-   python start_gui.py
-   
-   # 启动无界面模式
-   python main.py
-   ```
-   *注意：请始终使用管理员权限的终端。*
 
-## ⚙️ 核心功能
+```bash
+git clone https://github.com/Chizukuo/NTE-auto-fish.git
+cd NTE-auto-fish
+pip install -r requirements.txt
+```
 
-- **仪表盘 (Dashboard)**：实时显示成功次数、运行时间及处理频率等遥测数据。
-- **PID 微调**：动态调整 `Kp` 和 `Ki` 参数，以获得最完美的拉杆响应。
-- **HSV 校准**：支持针对青色（安全区）、黄色（游标）及蓝色（咬钩）进行颜色识别校准。
-- **实时日志**：集成的日志控制台，方便进行实时诊断。
+启动 GUI：
 
-## ⚠️ 注意事项
+```bash
+python start_gui.py
+```
 
-- **权限要求**：必须以管理员权限运行，否则无法与游戏窗口交互。
-- **显示设置**：建议使用**无边框窗口**或**窗口化全屏**模式，以确保截屏的稳定性。
-- **自动化**：通过 GitHub Actions 实现代码推送后的自动构建。
+启动无界面模式：
 
----
+```bash
+python main.py
+```
 
-<div align="center">
-高性能、高可靠性的自动钓鱼工具。
-</div>
+## 注意事项
+
+- Windows 下建议在管理员终端中运行。
+- 无边框窗口或窗口化全屏通常具有更稳定的截图效果。
+- 全局热键可以在 GUI 中修改，编辑后会重新注册。
+- 调试日志会把额外追踪数据写入 `fishing_data.csv`。

@@ -3,7 +3,7 @@ name: Build Executable
 on:
   push:
     branches: [ "main", "master" ]
-    tags: [ "v*" ] # 当推送 v1.0, v1.1 等标签时触发
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: write # 必须开启写入权限才能创建 Release
+      contents: write
 
     steps:
     - uses: actions/checkout@v4
@@ -87,7 +87,6 @@ jobs:
         name: NTE-Auto-Fish-CLI-Windows
         path: dist/NTE-Auto-Fish-CLI.exe
 
-    # --- 自动发布 Release 逻辑 ---
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v2

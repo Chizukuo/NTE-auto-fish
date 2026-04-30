@@ -1,9 +1,4 @@
-"""
-gui/bridge.py
-线程安全的 Bot ↔ GUI 通信桥。
-Bot 线程通过此模块发布状态更新；GUI 主线程消费更新来刷新界面。
-使用 queue.Queue（内部有锁）保证线程安全，无需手动加锁。
-"""
+"""Thread-safe bridge between the bot worker and the DearPyGui UI."""
 import dataclasses
 import queue
 import time
@@ -14,40 +9,36 @@ from modules.logic import FishingState
 
 @dataclasses.dataclass
 class BotStatus:
-    """Bot 向 GUI 推送的完整状态快照。"""
-    state:       FishingState = FishingState.IDLE
-    fish_count:  int = 0
+    """Snapshot pushed from the bot thread to the GUI."""
+
+    state: FishingState = FishingState.IDLE
+    fish_count: int = 0
     session_secs: float = 0.0
-    pid_output:  float = 0.0   # 最近一次 PID 输出，用于绘图
-    cursor_x:    Optional[int] = None  # 进度条内游标 X（像素）
-    target_x:    Optional[int] = None  # 进度条内安全区中心 X（像素）
-    bar_width:   int = 0    # 进度条 ROI 宽度（归一化用）
-    button_roi:  Tuple[int, int, int, int] = (0, 0, 0, 0)
-    bar_roi:     Tuple[int, int, int, int] = (0, 0, 0, 0)
-    fps:         float = 0.0  # STRUGGLING 帧率
-    is_running:  bool = False
+    pid_output: float = 0.0
+    cursor_x: Optional[int] = None
+    target_x: Optional[int] = None
+    bar_width: int = 0
+    button_roi: Tuple[int, int, int, int] = (0, 0, 0, 0)
+    bar_roi: Tuple[int, int, int, int] = (0, 0, 0, 0)
+    fps: float = 0.0
+    lost_frames: int = 0
+    lost_cursor_frames: int = 0
+    lost_target_frames: int = 0
+    is_running: bool = False
+    is_stopped: bool = True
 
 
 class BotBridge:
-    """
-    单例桥接对象，在 app.py 中实例化后注入给 BotRunner。
-    """
+    """Small queue-based boundary shared by GUI and bot threads."""
 
     def __init__(self) -> None:
-        # Bot -> GUI：状态更新（Queue，GUI 只需最新帧；限制大小防爆内存）
         self._status_q: queue.Queue[BotStatus] = queue.Queue(maxsize=60)
-        # Bot -> GUI：日志消息（保留历史，LifoQueue 不适合）
         self._log_q: queue.Queue[str] = queue.Queue(maxsize=500)
-        # GUI -> Bot：控制指令 ('start', 'stop', 'recalibrate')
         self._cmd_q: queue.Queue[str] = queue.Queue(maxsize=10)
-
         self._current_status = BotStatus()
 
-    # ------------------------------------------------------------------ #
-    # Bot 端调用                                                           #
-    # ------------------------------------------------------------------ #
     def push_status(self, status: BotStatus) -> None:
-        """Bot 每帧推送状态；若队列已满则丢弃旧帧。"""
+        """Push a status frame. Older frames are dropped when the GUI lags."""
         if self._status_q.full():
             try:
                 self._status_q.get_nowait()
@@ -59,7 +50,7 @@ class BotBridge:
             pass
 
     def push_log(self, msg: str) -> None:
-        """Bot 推送日志消息。若队列满则丢弃最早一条。"""
+        """Push a log message. The oldest entry is dropped if the queue is full."""
         if self._log_q.full():
             try:
                 self._log_q.get_nowait()
@@ -71,17 +62,14 @@ class BotBridge:
             pass
 
     def poll_cmd(self) -> Optional[str]:
-        """Bot 轮询 GUI 下发的指令，无指令时返回 None。"""
+        """Return the next command for the bot thread, if any."""
         try:
             return self._cmd_q.get_nowait()
         except queue.Empty:
             return None
 
-    # ------------------------------------------------------------------ #
-    # GUI 端调用                                                           #
-    # ------------------------------------------------------------------ #
     def latest_status(self) -> BotStatus:
-        """GUI 获取最新状态，消耗队列中所有帧，只返回最后一帧。"""
+        """Drain pending status frames and return only the newest snapshot."""
         latest = self._current_status
         while True:
             try:
@@ -92,7 +80,7 @@ class BotBridge:
         return latest
 
     def drain_logs(self) -> list[str]:
-        """GUI 获取所有待显示日志。"""
+        """Return all logs waiting to be rendered."""
         msgs = []
         while True:
             try:
@@ -102,11 +90,29 @@ class BotBridge:
         return msgs
 
     def send_cmd(self, cmd: str) -> None:
-        """GUI 向 Bot 发送控制指令。"""
+        """Queue a GUI command for the bot.
+
+        Stop is urgent: stale commands are cleared so the worker sees it as
+        soon as possible. For other commands, the oldest pending command is
+        dropped instead of silently losing the latest user action.
+        """
+        if cmd == "stop":
+            self._drain_cmds()
         try:
             self._cmd_q.put_nowait(cmd)
         except queue.Full:
-            pass
+            try:
+                self._cmd_q.get_nowait()
+                self._cmd_q.put_nowait(cmd)
+            except (queue.Empty, queue.Full):
+                pass
+
+    def _drain_cmds(self) -> None:
+        while True:
+            try:
+                self._cmd_q.get_nowait()
+            except queue.Empty:
+                break
 
 
 def _fmt_time() -> str:
