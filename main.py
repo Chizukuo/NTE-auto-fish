@@ -388,7 +388,31 @@ class NTEFishingBot:
                     self._stop_event.wait(timeout=0.1)
                     continue
 
-                if self._roi_error and self.sm.state in (FishingState.IDLE, FishingState.WAITING):
+                state = self.sm.state
+
+                # --- Priority 1: bar element detection → immediate STRUGGLING ---
+                if state is not FishingState.STRUGGLING and self._roi_bar:
+                    bar_img = self.capture.grab_bgr(self._roi_bar)
+                    cur_x, _ = self.vision.get_hsv_centroid_x(
+                        bar_img,
+                        self.cfg.hsv.cursor.lower,
+                        self.cfg.hsv.cursor.upper,
+                        ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
+                    )
+                    tgt_x, _ = self.vision.get_hsv_centroid_x(
+                        bar_img,
+                        self.cfg.hsv.safe_zone.lower,
+                        self.cfg.hsv.safe_zone.upper,
+                        ignore_margin_ratio=0.0,
+                    )
+                    if cur_x is not None or tgt_x is not None:
+                        self._log(f"[{state.value}] Bar detected → STRUGGLING.")
+                        self._enter_struggling()
+                        self._push_status()
+                        continue
+
+                # --- Priority 2: error dialog detection (IDLE only) ---
+                if state is FishingState.IDLE and self._roi_error:
                     err_img = self.capture.grab_bgr(self._roi_error)
                     if self.vision.check_error_region(err_img):
                         self._bait_error_count += 1
@@ -407,6 +431,7 @@ class NTEFishingBot:
                         self._push_status()
                         continue
 
+                # --- State handlers ---
                 state = self.sm.state
                 if state is FishingState.IDLE:
                     self._handle_idle()
@@ -439,6 +464,18 @@ class NTEFishingBot:
             except Exception:
                 pass
 
+    def _enter_struggling(self) -> None:
+        """Common setup when transitioning into STRUGGLING from any state."""
+        self._bait_error_count = 0
+        self.input.press(self.cfg.keys.cast, self.cfg.timing.key_press_duration)
+        self.pid.reset()
+        self._lost_frames = 0
+        self._lost_cursor_frames = 0
+        self._lost_target_frames = 0
+        self._cursor_x_rel = None
+        self._target_x_rel = None
+        self.sm.transition(FishingState.STRUGGLING)
+
     def _handle_idle(self) -> None:
         self._log("[IDLE] Casting...")
         self.input.press(self.cfg.keys.cast, self.cfg.timing.key_press_duration)
@@ -459,27 +496,8 @@ class NTEFishingBot:
             self.cfg.hsv.blue,
             self.cfg.min_blue_pixels,
         ):
-            self._log("[WAITING] Fish hooked.")
-            self._bait_error_count = 0
-            self.input.press(self.cfg.keys.cast, self.cfg.timing.key_press_duration)
-            self.pid.reset()
-            self._lost_frames = 0
-            self._lost_cursor_frames = 0
-            self._lost_target_frames = 0
-            self._cursor_x_rel = None
-            self._target_x_rel = None
-
-            try:
-                with open("fishing_data.csv", "a", newline="", encoding="utf-8") as handle:
-                    writer = csv.writer(handle)
-                    writer.writerow([f"--- NEW FISH #{self._fish_count + 1} ---"])
-                    writer.writerow(
-                        ["Time", "Cursor_X", "Target_X", "Error", "PID_Out", "Action"]
-                    )
-            except OSError:
-                pass
-
-            self.sm.transition(FishingState.STRUGGLING)
+            self._log("[WAITING] Fish hooked (blue trigger).")
+            self._enter_struggling()
         else:
             self._stop_event.wait(timeout=self.cfg.timing.waiting_poll_interval)
 
