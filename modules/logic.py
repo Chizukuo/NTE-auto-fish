@@ -37,7 +37,7 @@ class PIDController:
         self._d_term_filtered = 0.0
         self._ema_alpha = 0.3
         self._oscillation_count = 0
-        self._last_sign = 0
+        self._last_sign: int | None = None
         self._adaptive_kp_scale = 1.0
 
     def update_params(
@@ -89,7 +89,7 @@ class PIDController:
         current_kp = self.kp
         if self.adaptive:
             current_sign = 1 if error > 0 else -1
-            if current_sign != self._last_sign and abs(error) < 50:
+            if self._last_sign is not None and current_sign != self._last_sign and abs(error) < 50:
                 self._oscillation_count += 1
                 self._last_sign = current_sign
 
@@ -120,6 +120,7 @@ class PIDController:
         self._first_call = True
         self._d_term_filtered = 0.0
         self._oscillation_count = 0
+        self._last_sign = None
         self._adaptive_kp_scale = 1.0
 
 

@@ -1,18 +1,12 @@
 """Single source of runtime configuration for NTE Auto-Fish."""
 import json
 import os
-import sys
 from dataclasses import asdict, dataclass, field
 from typing import Tuple
 
+from modules.utils import APP_DIR
 
-def _app_dir() -> str:
-    if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.abspath(__file__))
-
-
-DEFAULT_SETTINGS_PATH = os.path.join(_app_dir(), "settings.json")
+DEFAULT_SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
 
 
 @dataclass

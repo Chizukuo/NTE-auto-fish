@@ -4,6 +4,7 @@ Screen capture and input helpers.
 CaptureModule uses mss to grab BGR frames from screen regions. InputModule
 wraps pydirectinput and tracks held keys so state changes can release them.
 """
+import threading
 import time
 
 import mss
@@ -60,10 +61,12 @@ class CaptureModule:
 class InputModule:
     """
     Lightweight pydirectinput wrapper that tracks held keys.
+    Thread-safe: all held-key mutations are guarded by a lock.
     """
 
     def __init__(self) -> None:
         self._held: set[str] = set()
+        self._lock = threading.Lock()
 
     def press(self, key: str, duration: float = 0.05) -> None:
         """Press and release a key without changing the held-key set."""
@@ -73,20 +76,32 @@ class InputModule:
 
     def hold(self, key: str) -> None:
         """Keep a key held down."""
-        pydirectinput.keyDown(key)
-        self._held.add(key)
+        with self._lock:
+            self._held.add(key)
+        try:
+            pydirectinput.keyDown(key)
+        except Exception:
+            with self._lock:
+                self._held.discard(key)
+            raise
 
     def release(self, key: str) -> None:
         """Release a key if this wrapper currently tracks it as held."""
-        if key in self._held:
-            pydirectinput.keyUp(key)
-            self._held.discard(key)
+        with self._lock:
+            if key in self._held:
+                pydirectinput.keyUp(key)
+                self._held.discard(key)
 
     def release_all(self) -> None:
         """Release all tracked held keys."""
-        for key in list(self._held):
-            pydirectinput.keyUp(key)
-        self._held.clear()
+        with self._lock:
+            keys = list(self._held)
+            self._held.clear()
+        for key in keys:
+            try:
+                pydirectinput.keyUp(key)
+            except Exception:
+                pass
 
     def click(self, x: int, y: int) -> None:
         """Click a screen coordinate."""

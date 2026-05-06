@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import sys
+import threading
 import time
 from typing import TYPE_CHECKING, Optional
 
@@ -25,20 +26,21 @@ except ImportError as exc:
 from config import CFG, AppConfig  # noqa: E402
 from modules.io_module import CaptureModule, InputModule  # noqa: E402
 from modules.logic import FishingState, FishingStateMachine, PIDController  # noqa: E402
+from modules.utils import APP_DIR  # noqa: E402
 from modules.vision import VisionModule  # noqa: E402
 
 if TYPE_CHECKING:
     from gui.bridge import BotBridge  # noqa: E402
 
+# CWD is set inside run() to avoid side effects on import
 
-def _app_dir() -> str:
-    if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.abspath(__file__))
-
-
-APP_DIR = _app_dir()
-os.chdir(APP_DIR)
+_DEFAULT_SCREEN_W = 3840
+_DEFAULT_SCREEN_H = 2160
+_RESULT_CLOSE_FALLBACK_X = 960
+_RESULT_CLOSE_FALLBACK_Y = 540
+_BAR_WIDTH_RATIO = 0.375
+_MAX_STRUGGLE_SECS = 120.0
+_BAIT_ERROR_THRESHOLD = 3
 
 
 def _resource_path(*parts: str) -> str:
@@ -79,6 +81,8 @@ class NTEFishingBot:
 
         self._roi_button: dict = dict(cfg.roi.button)
         self._roi_bar: dict = dict(cfg.roi.bar)
+        self._roi_error: dict = {}
+        self._bait_error_count = 0
         self._lost_frames = 0
         self._lost_cursor_frames = 0
         self._lost_target_frames = 0
@@ -92,6 +96,7 @@ class NTEFishingBot:
         self._session_start = time.time()
         self._is_paused = False
         self._stop_flag = False
+        self._stop_event = threading.Event()
         self._is_stopped = True
         self._fps = 0.0
         self._last_time = time.time()
@@ -104,11 +109,13 @@ class NTEFishingBot:
 
     def prepare_for_run(self, paused: bool = False) -> None:
         self._stop_flag = False
+        self._stop_event.clear()
         self._is_stopped = False
         self._is_paused = paused
         self.sm = FishingStateMachine()
         self.pid.reset()
         self._fish_count = 0
+        self._bait_error_count = 0
         self._lost_frames = 0
         self._lost_cursor_frames = 0
         self._lost_target_frames = 0
@@ -121,6 +128,7 @@ class NTEFishingBot:
 
     def request_stop(self) -> None:
         self._stop_flag = True
+        self._stop_event.set()
         self._is_paused = True
         self._is_stopped = True
         self._last_pid_out = 0.0
@@ -148,7 +156,7 @@ class NTEFishingBot:
                 pid_output=self._last_pid_out,
                 cursor_x=self._cursor_x_rel,
                 target_x=self._target_x_rel,
-                bar_width=self._roi_bar["width"],
+                bar_width=self._roi_bar.get("width", 0),
                 button_roi=self._roi_tuple(self._roi_button),
                 bar_roi=self._roi_tuple(self._roi_bar),
                 fps=0.0 if self._is_paused or self._is_stopped else self._fps,
@@ -212,9 +220,8 @@ class NTEFishingBot:
         )
 
         def get_fallback_button():
-            base_w, base_h = 3840, 2160
-            scale_w = self._screen_w / base_w
-            scale_h = self._screen_h / base_h
+            scale_w = self._screen_w / _DEFAULT_SCREEN_W
+            scale_h = self._screen_h / _DEFAULT_SCREEN_H
             return {
                 "top": int(1760 * scale_h),
                 "left": int(3400 * scale_w),
@@ -223,9 +230,8 @@ class NTEFishingBot:
             }
 
         def get_fallback_bar():
-            base_w, base_h = 3840, 2160
-            scale_w = self._screen_w / base_w
-            scale_h = self._screen_h / base_h
+            scale_w = self._screen_w / _DEFAULT_SCREEN_W
+            scale_h = self._screen_h / _DEFAULT_SCREEN_H
             return {
                 "top": int(118 * scale_h),
                 "left": int(1209 * scale_w),
@@ -280,6 +286,7 @@ class NTEFishingBot:
                         "[Calibration] Loaded progress ROI from "
                         f"{progress_json} -> {self._roi_bar}"
                     )
+                    self._load_error_roi()
                     self._log("[Calibration] Done.")
                     return
                 self._log(
@@ -312,7 +319,7 @@ class NTEFishingBot:
                 x1, y1, x2, y2 = result
                 icon_h = y2 - y1
                 bar_left = x2 + 10
-                bar_width = int(self._screen_w * 0.375)
+                bar_width = int(self._screen_w * _BAR_WIDTH_RATIO)
                 self._roi_bar = {
                     "top": max(0, y1 - pad),
                     "left": max(0, bar_left - pad),
@@ -328,9 +335,32 @@ class NTEFishingBot:
                 self._roi_bar = get_fallback_bar()
                 self._log(f"Progress bar ROI (fallback) -> {self._roi_bar}")
 
+        self._load_error_roi()
+
         self._log("[Calibration] Done.")
 
+    def _load_error_roi(self) -> None:
+        error_json = _resource_path("templates", "error.json")
+        if not os.path.exists(error_json):
+            return
+        try:
+            with open(error_json, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            if data and isinstance(data, list) and "ratios" in data[0]:
+                ratios = data[0]["ratios"]
+                self._roi_error = {
+                    "top": round(self._screen_h * ratios["top"]),
+                    "left": round(self._screen_w * ratios["left"]),
+                    "width": round(self._screen_w * ratios["width"]),
+                    "height": round(self._screen_h * ratios["height"]),
+                }
+                self._log(f"[Calibration] Loaded error ROI -> {self._roi_error}")
+        except Exception as exc:
+            self._log(f"Failed to load {error_json}: {exc}", logging.ERROR)
+
     def run(self) -> None:
+        os.chdir(APP_DIR)
+
         if self._stop_flag:
             self._is_paused = True
             self._is_stopped = True
@@ -355,8 +385,36 @@ class NTEFishingBot:
                 self._push_status()
 
                 if self._is_paused:
-                    time.sleep(0.1)
+                    self._stop_event.wait(timeout=0.1)
                     continue
+
+                if self._roi_error:
+                    err_img = self.capture.grab_bgr(self._roi_error)
+                    if self.vision.check_error_region(err_img):
+                        state_at_error = self.sm.state
+                        if state_at_error in (FishingState.IDLE, FishingState.WAITING):
+                            self._bait_error_count += 1
+                            self._log(
+                                f"[ERROR] Cast error ({self._bait_error_count}/{_BAIT_ERROR_THRESHOLD}), "
+                                "waiting for dialog to dismiss..."
+                            )
+                            self.input.release_all()
+                            self._stop_event.wait(timeout=5.0)
+                            if self._bait_error_count >= _BAIT_ERROR_THRESHOLD:
+                                self._log("[ERROR] Bait likely exhausted, stopping bot.")
+                                self.request_stop()
+                                self._push_status()
+                                continue
+                            self.sm.transition(FishingState.IDLE)
+                            self._push_status()
+                            continue
+                        else:
+                            self._log("[ERROR] Fish escaped, waiting for dialog to dismiss...")
+                            self.input.release_all()
+                            self._stop_event.wait(timeout=5.0)
+                            self.sm.transition(FishingState.IDLE)
+                            self._push_status()
+                            continue
 
                 state = self.sm.state
                 if state is FishingState.IDLE:
@@ -369,20 +427,33 @@ class NTEFishingBot:
                     self._handle_result()
         except KeyboardInterrupt:
             self._log("Ctrl+C received.")
+        except Exception as exc:
+            self._log(f"Bot crashed: {exc}", logging.ERROR)
         finally:
             self._is_paused = True
             self._is_stopped = True
             self._last_pid_out = 0.0
             self._fps = 0.0
-            self.input.release_all()
-            self.capture.close()
-            self._push_status()
-            self._log(f"Bot stopped. Fish caught: {self._fish_count}")
+            try:
+                self.input.release_all()
+            except Exception:
+                pass
+            try:
+                self.capture.close()
+            except Exception:
+                pass
+            try:
+                self._push_status()
+                self._log(f"Bot stopped. Fish caught: {self._fish_count}")
+            except Exception:
+                pass
 
     def _handle_idle(self) -> None:
         self._log("[IDLE] Casting...")
         self.input.press(self.cfg.keys.cast, self.cfg.timing.key_press_duration)
-        time.sleep(self.cfg.timing.cast_animation_secs)
+        self._stop_event.wait(timeout=self.cfg.timing.cast_animation_secs)
+        if self._stop_flag:
+            return
         self.sm.transition(FishingState.WAITING)
 
     def _handle_waiting(self) -> None:
@@ -398,6 +469,7 @@ class NTEFishingBot:
             self.cfg.min_blue_pixels,
         ):
             self._log("[WAITING] Fish hooked.")
+            self._bait_error_count = 0
             self.input.press(self.cfg.keys.cast, self.cfg.timing.key_press_duration)
             self.pid.reset()
             self._lost_frames = 0
@@ -406,18 +478,30 @@ class NTEFishingBot:
             self._cursor_x_rel = None
             self._target_x_rel = None
 
-            with open("fishing_data.csv", "a", newline="", encoding="utf-8") as handle:
-                writer = csv.writer(handle)
-                writer.writerow([f"--- NEW FISH #{self._fish_count + 1} ---"])
-                writer.writerow(
-                    ["Time", "Cursor_X", "Target_X", "Error", "PID_Out", "Action"]
-                )
+            try:
+                with open("fishing_data.csv", "a", newline="", encoding="utf-8") as handle:
+                    writer = csv.writer(handle)
+                    writer.writerow([f"--- NEW FISH #{self._fish_count + 1} ---"])
+                    writer.writerow(
+                        ["Time", "Cursor_X", "Target_X", "Error", "PID_Out", "Action"]
+                    )
+            except OSError:
+                pass
 
             self.sm.transition(FishingState.STRUGGLING)
         else:
-            time.sleep(self.cfg.timing.waiting_poll_interval)
+            self._stop_event.wait(timeout=self.cfg.timing.waiting_poll_interval)
 
     def _handle_struggling(self) -> None:
+        if self.sm.time_in_state > _MAX_STRUGGLE_SECS:
+            self._log(
+                f"[STRUGGLING] Max duration ({_MAX_STRUGGLE_SECS}s) reached, ending.",
+                logging.WARNING,
+            )
+            self.input.release_all()
+            self.sm.transition(FishingState.RESULT)
+            return
+
         bar_img = self.capture.grab_bgr(self._roi_bar)
         cursor_x, _ = self.vision.get_hsv_centroid_x(
             bar_img,
@@ -430,7 +514,7 @@ class NTEFishingBot:
             bar_img,
             self.cfg.hsv.safe_zone.lower,
             self.cfg.hsv.safe_zone.upper,
-            ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
+            ignore_margin_ratio=0.0,
             last_known_x=self._target_x_rel,
         )
 
@@ -502,18 +586,21 @@ class NTEFishingBot:
         if self.cfg.debug_mode:
             cursor_text = f"{cursor_x}" if cursor_x is not None else "None"
             target_text = f"{target_x}" if target_x is not None else "None"
-            with open("fishing_data.csv", "a", newline="", encoding="utf-8") as handle:
-                writer = csv.writer(handle)
-                writer.writerow(
-                    [
-                        f"{time.time():.3f}",
-                        cursor_text,
-                        target_text,
-                        f"{error:.1f}",
-                        f"{output:.3f}",
-                        action,
-                    ]
-                )
+            try:
+                with open("fishing_data.csv", "a", newline="", encoding="utf-8") as handle:
+                    writer = csv.writer(handle)
+                    writer.writerow(
+                        [
+                            f"{time.time():.3f}",
+                            cursor_text,
+                            target_text,
+                            f"{error:.1f}",
+                            f"{output:.3f}",
+                            action,
+                        ]
+                    )
+            except OSError:
+                pass
 
         if (
             self._lost_cursor_frames >= self.cfg.timing.lost_frames_threshold
@@ -531,19 +618,51 @@ class NTEFishingBot:
             self.input.release_all()
             self.sm.transition(FishingState.RESULT)
 
-        time.sleep(self.cfg.timing.struggling_poll_interval)
+        self._stop_event.wait(timeout=self.cfg.timing.struggling_poll_interval)
 
     def _handle_result(self) -> None:
+        self._stop_event.wait(timeout=self.cfg.timing.result_wait_secs)
+        if self._stop_flag:
+            return
+
+        # Verify the mini-game actually ended before counting a fish.
+        # If the cursor or safe zone is still visible on the bar, the
+        # STRUGGLING → RESULT transition was premature (tracking was
+        # temporarily lost). Release keys and go back to IDLE to recast.
+        bar_img = self.capture.grab_bgr(self._roi_bar)
+        cur_x, _ = self.vision.get_hsv_centroid_x(
+            bar_img,
+            self.cfg.hsv.cursor.lower,
+            self.cfg.hsv.cursor.upper,
+            ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
+        )
+        tgt_x, _ = self.vision.get_hsv_centroid_x(
+            bar_img,
+            self.cfg.hsv.safe_zone.lower,
+            self.cfg.hsv.safe_zone.upper,
+            ignore_margin_ratio=0.0,
+        )
+        if cur_x is not None or tgt_x is not None:
+            self._log(
+                "[RESULT] Mini-game still active (bar elements detected) — "
+                "recovering to IDLE.",
+                logging.WARNING,
+            )
+            self.input.release_all()
+            self.sm.transition(FishingState.IDLE)
+            return
+
         self._fish_count += 1
         self._log(f"[RESULT] Fish #{self._fish_count}.")
-        time.sleep(self.cfg.timing.result_wait_secs)
         if self.cfg.result_close_method == "click":
-            cx = self._screen_w // 2 if self._screen_w else 960
-            cy = self._screen_h // 2 if self._screen_h else 540
+            cx = self._screen_w // 2 if self._screen_w else _RESULT_CLOSE_FALLBACK_X
+            cy = self._screen_h // 2 if self._screen_h else _RESULT_CLOSE_FALLBACK_Y
             self.input.click(cx, cy)
         else:
             self.input.press(self.cfg.keys.exit, self.cfg.timing.key_press_duration)
-        time.sleep(0.5)
+        self._stop_event.wait(timeout=0.5)
+        if self._stop_flag:
+            return
         self.sm.transition(FishingState.IDLE)
 
 

@@ -4,6 +4,9 @@ import numpy as np
 
 from config import CFG, CalibrationConfig, HsvRange
 
+_ERROR_BRIGHTNESS_THRESHOLD = 25
+_ERROR_WHITE_PIXEL_MIN = 800
+
 
 _KERNEL_3x3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
@@ -126,6 +129,16 @@ class VisionModule:
 
         cx = int((group_min_x + group_max_x) / 2.0)
         return cx, float(total_area)
+
+    @staticmethod
+    def check_error_region(bgr_img: np.ndarray) -> bool:
+        """Return True when the region shows a dark background with white text (error dialog)."""
+        gray = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2GRAY)
+        mean_brightness = float(np.mean(gray))
+        if mean_brightness > _ERROR_BRIGHTNESS_THRESHOLD:
+            return False
+        white_pixels = int(cv2.countNonZero(cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]))
+        return white_pixels >= _ERROR_WHITE_PIXEL_MIN
 
     @staticmethod
     def check_blue_trigger(
