@@ -26,7 +26,7 @@ except ImportError as exc:
 from config import CFG, AppConfig  # noqa: E402
 from modules.io_module import CaptureModule, InputModule  # noqa: E402
 from modules.logic import FishingState, FishingStateMachine, PIDController  # noqa: E402
-from modules.utils import APP_DIR  # noqa: E402
+from modules.utils import APP_DIR, bundled_path  # noqa: E402
 from modules.vision import VisionModule  # noqa: E402
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ _BAIT_ERROR_THRESHOLD = 3
 
 
 def _resource_path(*parts: str) -> str:
-    return os.path.join(APP_DIR, *parts)
+    return bundled_path(*parts)
 
 
 logging.basicConfig(
@@ -219,34 +219,45 @@ class NTEFishingBot:
             f"[Calibration] Screen resolution: {self._screen_w}x{self._screen_h}"
         )
 
-        def get_fallback_button():
+        # --- Bar ROI (ratio-based, primary method) ---
+        progress_json = _resource_path("templates", "progress.json")
+        try:
+            with open(progress_json, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            if data and isinstance(data, list) and "ratios" in data[0]:
+                ratios = data[0]["ratios"]
+                self._roi_bar = {
+                    "top": round(self._screen_h * ratios["top"]),
+                    "left": round(self._screen_w * ratios["left"]),
+                    "width": round(self._screen_w * ratios["width"]),
+                    "height": round(self._screen_h * ratios["height"]),
+                }
+                self._log(f"[Calibration] Bar ROI (ratio) -> {self._roi_bar}")
+            else:
+                raise ValueError("no valid ratio data")
+        except Exception:
             scale_w = self._screen_w / _DEFAULT_SCREEN_W
             scale_h = self._screen_h / _DEFAULT_SCREEN_H
-            return {
-                "top": int(1760 * scale_h),
-                "left": int(3400 * scale_w),
-                "width": int(440 * scale_w),
-                "height": int(360 * scale_h),
-            }
-
-        def get_fallback_bar():
-            scale_w = self._screen_w / _DEFAULT_SCREEN_W
-            scale_h = self._screen_h / _DEFAULT_SCREEN_H
-            return {
+            self._roi_bar = {
                 "top": int(118 * scale_h),
                 "left": int(1209 * scale_w),
                 "width": int(1441 * scale_w),
                 "height": int(64 * scale_h),
             }
+            self._log(f"[Calibration] Bar ROI (fallback) -> {self._roi_bar}")
+
+        # --- Button ROI (template matching with resolution fallback) ---
+        scale_w = self._screen_w / _DEFAULT_SCREEN_W
+        scale_h = self._screen_h / _DEFAULT_SCREEN_H
+        button_fallback = {
+            "top": int(1760 * scale_h),
+            "left": int(3400 * scale_w),
+            "width": int(440 * scale_w),
+            "height": int(360 * scale_h),
+        }
 
         tmpl_f = cv2.imread(_resource_path("templates", "button_f.png"))
-        if tmpl_f is None:
-            self._log(
-                "templates/button_f.png not found; using resolution fallback.",
-                logging.WARNING,
-            )
-            self._roi_button = get_fallback_button()
-        else:
+        if tmpl_f is not None:
             result = self.vision.find_template_multi_scale(
                 scene,
                 tmpl_f,
@@ -260,80 +271,13 @@ class NTEFishingBot:
                     "width": (x2 - x1) + pad * 2,
                     "height": (y2 - y1) + pad * 2,
                 }
-                self._log(f"F button ROI -> {self._roi_button}")
+                self._log(f"[Calibration] Button ROI (template) -> {self._roi_button}")
             else:
-                self._log(
-                    "F button match failed; using resolution fallback.",
-                    logging.WARNING,
-                )
-                self._roi_button = get_fallback_button()
-                self._log(f"F button ROI (fallback) -> {self._roi_button}")
-
-        progress_json = _resource_path("templates", "progress.json")
-        if os.path.exists(progress_json):
-            try:
-                with open(progress_json, "r", encoding="utf-8") as handle:
-                    data = json.load(handle)
-                if data and isinstance(data, list) and "ratios" in data[0]:
-                    ratios = data[0]["ratios"]
-                    self._roi_bar = {
-                        "top": round(self._screen_h * ratios["top"]),
-                        "left": round(self._screen_w * ratios["left"]),
-                        "width": round(self._screen_w * ratios["width"]),
-                        "height": round(self._screen_h * ratios["height"]),
-                    }
-                    self._log(
-                        "[Calibration] Loaded progress ROI from "
-                        f"{progress_json} -> {self._roi_bar}"
-                    )
-                    self._load_error_roi()
-                    self._log("[Calibration] Done.")
-                    return
-                self._log(
-                    f"[Calibration] {progress_json} has no valid ratio data; "
-                    "using template/fallback.",
-                    logging.WARNING,
-                )
-            except Exception as exc:
-                self._log(f"Failed to load {progress_json}: {exc}", logging.ERROR)
+                self._roi_button = button_fallback
+                self._log(f"[Calibration] Button ROI (fallback) -> {self._roi_button}")
         else:
-            self._log(
-                f"{progress_json} not found; using template/fallback.",
-                logging.WARNING,
-            )
-
-        tmpl_bar = cv2.imread(_resource_path("templates", "bar_icon_left.png"))
-        if tmpl_bar is None:
-            self._log(
-                "templates/bar_icon_left.png not found; using resolution fallback.",
-                logging.WARNING,
-            )
-            self._roi_bar = get_fallback_bar()
-        else:
-            result = self.vision.find_template_multi_scale(
-                scene,
-                tmpl_bar,
-                self.cfg.calibration,
-            )
-            if result:
-                x1, y1, x2, y2 = result
-                icon_h = y2 - y1
-                bar_left = x2 + 10
-                bar_width = int(self._screen_w * _BAR_WIDTH_RATIO)
-                self._roi_bar = {
-                    "top": max(0, y1 - pad),
-                    "left": max(0, bar_left - pad),
-                    "width": bar_width + pad * 2,
-                    "height": icon_h + pad * 2,
-                }
-                self._log(f"Progress bar ROI -> {self._roi_bar}")
-            else:
-                self._log(
-                    "Bar icon match failed; using resolution fallback.",
-                    logging.WARNING,
-                )
-                self._roi_bar = get_fallback_bar()
-                self._log(f"Progress bar ROI (fallback) -> {self._roi_bar}")
+            self._roi_button = button_fallback
+            self._log(f"[Calibration] Button ROI (fallback) -> {self._roi_button}")
 
         self._load_error_roi()
 
