@@ -4,8 +4,10 @@ import numpy as np
 
 from config import CFG, CalibrationConfig, HsvRange
 
-_ERROR_BRIGHTNESS_THRESHOLD = 25
-_ERROR_WHITE_PIXEL_MIN = 800
+_ERROR_BRIGHTNESS_THRESHOLD = 20
+_ERROR_WHITE_PIXEL_MIN = 1200
+_ERROR_WHITE_RATIO_MIN = 0.02
+_ERROR_WHITE_RATIO_MAX = 0.35
 
 
 _KERNEL_3x3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
@@ -137,8 +139,12 @@ class VisionModule:
         mean_brightness = float(np.mean(gray))
         if mean_brightness > _ERROR_BRIGHTNESS_THRESHOLD:
             return False
+        total_pixels = gray.shape[0] * gray.shape[1]
         white_pixels = int(cv2.countNonZero(cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]))
-        return white_pixels >= _ERROR_WHITE_PIXEL_MIN
+        if white_pixels < _ERROR_WHITE_PIXEL_MIN:
+            return False
+        ratio = white_pixels / max(total_pixels, 1)
+        return _ERROR_WHITE_RATIO_MIN <= ratio <= _ERROR_WHITE_RATIO_MAX
 
     @staticmethod
     def check_blue_trigger(
