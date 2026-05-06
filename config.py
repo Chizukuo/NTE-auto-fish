@@ -32,10 +32,12 @@ class HsvConfig:
 class PidConfig:
     kp: float = 0.45
     ki: float = 0.05
-    kd: float = 0.0
+    kd: float = 0.08
     integral_limit: float = 150.0
     deadband: float = 5.0
     adaptive: bool = True
+    ema_alpha: float = 0.25
+    max_dt: float = 0.1
 
 
 @dataclass

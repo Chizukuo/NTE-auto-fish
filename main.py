@@ -533,12 +533,15 @@ class NTEFishingBot:
                 deadband=self.cfg.pid.deadband,
                 adaptive=self.cfg.pid.adaptive,
                 integral_limit=self.cfg.pid.integral_limit,
+                ema_alpha=self.cfg.pid.ema_alpha,
+                max_dt=self.cfg.pid.max_dt,
             )
             self._lost_frames = 0
             self._lost_cursor_frames = 0
             self._lost_target_frames = 0
             error = float(target_x) - float(cursor_x)
-            output = self.pid.update(float(cursor_x), float(target_x))
+            bar_half = self._roi_bar.get("width", 400) / 2
+            output = self.pid.update(float(cursor_x), float(target_x), bar_half_width=bar_half)
             self._last_pid_out = output
 
             deadband = self.cfg.pid.deadband
