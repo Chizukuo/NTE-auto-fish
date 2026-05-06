@@ -388,33 +388,24 @@ class NTEFishingBot:
                     self._stop_event.wait(timeout=0.1)
                     continue
 
-                if self._roi_error:
+                if self._roi_error and self.sm.state in (FishingState.IDLE, FishingState.WAITING):
                     err_img = self.capture.grab_bgr(self._roi_error)
                     if self.vision.check_error_region(err_img):
-                        state_at_error = self.sm.state
-                        if state_at_error in (FishingState.IDLE, FishingState.WAITING):
-                            self._bait_error_count += 1
-                            self._log(
-                                f"[ERROR] Cast error ({self._bait_error_count}/{_BAIT_ERROR_THRESHOLD}), "
-                                "waiting for dialog to dismiss..."
-                            )
-                            self.input.release_all()
-                            self._stop_event.wait(timeout=5.0)
-                            if self._bait_error_count >= _BAIT_ERROR_THRESHOLD:
-                                self._log("[ERROR] Bait likely exhausted, stopping bot.")
-                                self.request_stop()
-                                self._push_status()
-                                continue
-                            self.sm.transition(FishingState.IDLE)
+                        self._bait_error_count += 1
+                        self._log(
+                            f"[ERROR] Cast error ({self._bait_error_count}/{_BAIT_ERROR_THRESHOLD}), "
+                            "waiting for dialog to dismiss..."
+                        )
+                        self.input.release_all()
+                        self._stop_event.wait(timeout=5.0)
+                        if self._bait_error_count >= _BAIT_ERROR_THRESHOLD:
+                            self._log("[ERROR] Bait likely exhausted, stopping bot.")
+                            self.request_stop()
                             self._push_status()
                             continue
-                        else:
-                            self._log("[ERROR] Fish escaped, waiting for dialog to dismiss...")
-                            self.input.release_all()
-                            self._stop_event.wait(timeout=5.0)
-                            self.sm.transition(FishingState.IDLE)
-                            self._push_status()
-                            continue
+                        self.sm.transition(FishingState.IDLE)
+                        self._push_status()
+                        continue
 
                 state = self.sm.state
                 if state is FishingState.IDLE:
