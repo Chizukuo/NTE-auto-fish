@@ -15,6 +15,7 @@ from gui.pages.settings import create_settings
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import _FONT_PATH, FONT_SIZES, build_global_theme, set_ui_scale
 from main import NTEFishingBot
+from screeninfo import get_monitors
 
 
 def _get_primary_monitor_size() -> tuple[int, int]:
@@ -260,12 +261,12 @@ class FishingGUI:
         """Move the GUI window to the bottom-left corner to avoid overlapping
         the game's ROI regions (button at bottom-right, bar at top-center)."""
         try:
-            scr_w, scr_h = _get_primary_monitor_size()
+            mon = get_monitors()[CFG.monitor_index]
             vp_w = int(960 * self._ui_scale)
             vp_h = int(700 * self._ui_scale)
             margin = int(50 * self._ui_scale)
-            x = margin
-            y = scr_h - vp_h - margin
+            x = mon.x + margin
+            y = mon.y + mon.height - vp_h - margin
             dpg.set_viewport_pos([x, y])
         except Exception:
             pass
