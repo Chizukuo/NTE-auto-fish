@@ -89,6 +89,7 @@ class NTEFishingBot:
         self._fish_count = 0
         self._screen_w = 0
         self._screen_h = 0
+        self._scaled_min_area = 50.0
 
         self._last_pid_out = 0.0
         self._cursor_x_rel = None
@@ -214,6 +215,8 @@ class NTEFishingBot:
         self._log("[Calibration] Capturing full screen...")
         scene = self.capture.grab_full_screen()
         self._screen_w, self._screen_h = self.capture.get_screen_size()
+        scale = min(self._screen_w / _DEFAULT_SCREEN_W, self._screen_h / _DEFAULT_SCREEN_H)
+        self._scaled_min_area = max(50.0 * scale * scale, 1.0)
         pad = self.cfg.calibration.roi_padding
         self._log(
             f"[Calibration] Screen resolution: {self._screen_w}x{self._screen_h}"
@@ -341,12 +344,14 @@ class NTEFishingBot:
                         bar_img,
                         self.cfg.hsv.cursor.lower,
                         self.cfg.hsv.cursor.upper,
+                        min_area=self._scaled_min_area,
                         ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
                     )
                     tgt_x, _ = self.vision.get_hsv_centroid_x(
                         bar_img,
                         self.cfg.hsv.safe_zone.lower,
                         self.cfg.hsv.safe_zone.upper,
+                        min_area=self._scaled_min_area,
                         ignore_margin_ratio=0.0,
                     )
                     if cur_x is not None or tgt_x is not None:
@@ -460,6 +465,7 @@ class NTEFishingBot:
             bar_img,
             self.cfg.hsv.cursor.lower,
             self.cfg.hsv.cursor.upper,
+            min_area=self._scaled_min_area,
             ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
             last_known_x=self._cursor_x_rel,
         )
@@ -467,6 +473,7 @@ class NTEFishingBot:
             bar_img,
             self.cfg.hsv.safe_zone.lower,
             self.cfg.hsv.safe_zone.upper,
+            min_area=self._scaled_min_area,
             ignore_margin_ratio=0.0,
             last_known_x=self._target_x_rel,
         )
@@ -590,12 +597,14 @@ class NTEFishingBot:
             bar_img,
             self.cfg.hsv.cursor.lower,
             self.cfg.hsv.cursor.upper,
+            min_area=self._scaled_min_area,
             ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
         )
         tgt_x, _ = self.vision.get_hsv_centroid_x(
             bar_img,
             self.cfg.hsv.safe_zone.lower,
             self.cfg.hsv.safe_zone.upper,
+            min_area=self._scaled_min_area,
             ignore_margin_ratio=0.0,
         )
         if cur_x is not None or tgt_x is not None:
