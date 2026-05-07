@@ -77,16 +77,39 @@ STATE_STOPPED_HOVER = (248, 113, 113)
 STATE_STOPPED_ACTIVE = (220, 38, 38)
 
 # ---------------------------------------------------------------------------
-# Spacing tokens
+# Spacing tokens (design-time values; scaled at runtime via _ui_scale)
 # ---------------------------------------------------------------------------
 
-CARD_PADDING = 24
-CARD_GAP = 16
-SECTION_GAP = 24
-CARD_ROUNDING = 16
-INPUT_ROUNDING = 10
-BUTTON_ROUNDING = 8
-SIDEBAR_WIDTH = 220
+CARD_PADDING = 16
+CARD_GAP = 12
+SECTION_GAP = 16
+CARD_ROUNDING = 12
+INPUT_ROUNDING = 8
+BUTTON_ROUNDING = 6
+SIDEBAR_WIDTH = 180
+
+import ctypes
+
+def _compute_initial_scale() -> float:
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
+    # We maintain 1.0 scale to keep crisp 16px fonts and a stable layout.
+    # OS DPI scaling will handle high-DPI sizing correctly.
+    return 1.0
+
+_ui_scale: float = _compute_initial_scale()
+
+def set_ui_scale(scale: float) -> None:
+    """Set the runtime UI scale factor (called once during app startup)."""
+    global _ui_scale
+    _ui_scale = max(0.5, min(scale, 1.0))
+
+
+def get_sidebar_width() -> int:
+    """Return sidebar width scaled for the current screen resolution."""
+    return int(SIDEBAR_WIDTH * _ui_scale)
 
 # ---------------------------------------------------------------------------
 # Font paths & sizes
@@ -94,11 +117,11 @@ SIDEBAR_WIDTH = 220
 
 _FONT_PATH = "C:/Windows/Fonts/segoeui.ttf"
 FONT_SIZES = {
-    "caption": 14,
-    "body": 16,
-    "section": 18,
-    "title": 24,
-    "metric": 28,
+    "caption": 12,
+    "body": 14,
+    "section": 16,
+    "title": 20,
+    "metric": 24,
 }
 
 # ---------------------------------------------------------------------------
@@ -106,22 +129,22 @@ FONT_SIZES = {
 # ---------------------------------------------------------------------------
 
 
-def build_global_theme() -> int:
+def build_global_theme(scale: float = 1.0) -> int:
     """Create the app-wide glassmorphism dark theme."""
     with dpg.theme() as theme:
         with dpg.theme_component(dpg.mvAll):
-            # Spacing
-            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, CARD_PADDING, CARD_PADDING)
-            dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 10, 6)
-            dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 12, 10)
-            dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8, 6)
-            dpg.add_theme_style(dpg.mvStyleVar_IndentSpacing, 22)
-            dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize, 10)
-            dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, CARD_ROUNDING)
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, INPUT_ROUNDING)
-            dpg.add_theme_style(dpg.mvStyleVar_GrabRounding, INPUT_ROUNDING)
-            dpg.add_theme_style(dpg.mvStyleVar_PopupRounding, CARD_ROUNDING)
-            dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, CARD_ROUNDING)
+            # Spacing (scaled for different screen resolutions)
+            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, CARD_PADDING * scale, CARD_PADDING * scale)
+            dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 10 * scale, 6 * scale)
+            dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 12 * scale, 10 * scale)
+            dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8 * scale, 6 * scale)
+            dpg.add_theme_style(dpg.mvStyleVar_IndentSpacing, 22 * scale)
+            dpg.add_theme_style(dpg.mvStyleVar_ScrollbarSize, max(6, 10 * scale))
+            dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, CARD_ROUNDING * scale)
+            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, INPUT_ROUNDING * scale)
+            dpg.add_theme_style(dpg.mvStyleVar_GrabRounding, INPUT_ROUNDING * scale)
+            dpg.add_theme_style(dpg.mvStyleVar_PopupRounding, CARD_ROUNDING * scale)
+            dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, CARD_ROUNDING * scale)
             dpg.add_theme_style(dpg.mvStyleVar_WindowBorderSize, 0)
             dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 1)
             dpg.add_theme_style(dpg.mvStyleVar_FrameBorderSize, 0)
@@ -179,13 +202,14 @@ def build_glass_card_theme(
     border_color: tuple = BORDER_SUBTLE,
 ) -> int:
     """Per-item theme for child_window glass cards."""
+    s = _ui_scale
     with dpg.theme() as theme:
         with dpg.theme_component(dpg.mvChildWindow):
             dpg.add_theme_color(dpg.mvThemeCol_ChildBg, bg_color)
             dpg.add_theme_color(dpg.mvThemeCol_Border, border_color)
-            dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, CARD_ROUNDING)
+            dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, CARD_ROUNDING * s)
             dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 1)
-            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, CARD_PADDING, CARD_PADDING)
+            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, CARD_PADDING * s, CARD_PADDING * s)
     return theme
 
 
@@ -220,6 +244,7 @@ def build_nav_item_theme(active: bool = False) -> int:
 
 def build_settings_cat_theme(active: bool = False) -> int:
     """Theme for settings category buttons."""
+    s = _ui_scale
     with dpg.theme() as theme:
         with dpg.theme_component(dpg.mvButton):
             if active:
@@ -231,12 +256,13 @@ def build_settings_cat_theme(active: bool = False) -> int:
             dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, GLASS_HIGHLIGHT2)
             dpg.add_theme_color(dpg.mvThemeCol_Text, TEXT_PRIMARY if active else TEXT_MUTED)
             dpg.add_theme_style(dpg.mvStyleVar_ButtonTextAlign, 0, 0.5)
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6)
+            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6 * s)
     return theme
 
 
 def build_button_theme(variant: str) -> int:
     """Create a button theme for the given variant: primary/danger/warning/neutral."""
+    s = _ui_scale
     colors = {
         "primary": (BTN_PRIMARY, BTN_PRIMARY_HOVER, BTN_PRIMARY_ACTIVE),
         "danger": (BTN_DANGER, BTN_DANGER_HOVER, BTN_DANGER_ACTIVE),
@@ -250,7 +276,7 @@ def build_button_theme(variant: str) -> int:
             dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, hovered)
             dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, active)
             dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, BUTTON_ROUNDING)
+            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, BUTTON_ROUNDING * s)
     return theme
 
 

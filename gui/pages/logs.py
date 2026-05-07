@@ -15,6 +15,7 @@ from gui.theme import (
     TEXT_PRIMARY,
     TEXT_VERY_MUTED,
     WARNING,
+    _ui_scale as _s,
 )
 
 # ---------------------------------------------------------------------------
@@ -49,30 +50,30 @@ def create_logs(bridge: BotBridge):
 
     # ── Toolbar ─────────────────────────────────────────────────────────
     with dpg.child_window(
-        height=52, tag="log_toolbar", border=True, no_scrollbar=True,
+        height=int(52 * _s), tag="log_toolbar", border=True, no_scrollbar=True,
     ):
         apply_glass_card_theme("log_toolbar")
         with dpg.group(horizontal=True):
             dpg.add_combo(
-                items=_FILTERS, default_value=_FILTER_ALL, width=120,
+                items=_FILTERS, default_value=_FILTER_ALL, width=int(120 * _s),
                 tag="log_filter", callback=_on_filter_changed,
             )
-            dpg.add_spacer(width=12)
+            dpg.add_spacer(width=int(12 * _s))
             dpg.add_input_text(
-                hint="Search logs...", width=200,
+                hint="Search logs...", width=int(200 * _s),
                 tag="log_search", callback=_on_search_changed,
             )
-            dpg.add_spacer(width=12)
+            dpg.add_spacer(width=int(12 * _s))
             dpg.add_text("0 entries", tag="log_count", color=TEXT_MUTED)
             dpg.add_spacer(width=-1)
             dpg.add_checkbox(
                 label="Auto-scroll", tag="log_auto_scroll",
                 default_value=True, callback=_on_auto_scroll_changed,
             )
-            dpg.add_spacer(width=12)
-            dpg.add_button(label="Clear", width=80, callback=lambda s, a, u: _clear_logs())
+            dpg.add_spacer(width=int(12 * _s))
+            dpg.add_button(label="Clear", width=int(80 * _s), callback=lambda s, a, u: _clear_logs())
 
-    dpg.add_spacer(height=CARD_GAP)
+    dpg.add_spacer(height=int(CARD_GAP * _s))
 
     # ── Log area ────────────────────────────────────────────────────────
     with dpg.child_window(

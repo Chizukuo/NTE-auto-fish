@@ -26,6 +26,7 @@ from gui.theme import (
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_VERY_MUTED,
+    _ui_scale as _s,
     build_settings_cat_theme,
 )
 
@@ -99,17 +100,17 @@ def create_settings(
     with dpg.group(horizontal=True):
         # ── Left column: category list ──────────────────────────────────
         with dpg.child_window(
-            width=200, height=-1, tag="settings_cat_list",
+            width=int(200 * _s), height=-1, tag="settings_cat_list",
             border=True, no_scrollbar=True,
         ):
             apply_glass_card_theme("settings_cat_list")
-            dpg.add_spacer(height=8)
+            dpg.add_spacer(height=int(8 * _s))
             section_header("Categories", color=TEXT_MUTED)
 
             for key, label in CATEGORIES:
                 _create_category_item(key, label)
 
-        dpg.add_spacer(width=CARD_GAP)
+        dpg.add_spacer(width=int(CARD_GAP * _s))
 
         # ── Right column: settings content ──────────────────────────────
         with dpg.child_window(
@@ -124,20 +125,20 @@ def create_settings(
             _build_input_settings(bridge, on_hotkeys_changed)
             _build_calibration_settings()
 
-            dpg.add_spacer(height=20)
+            dpg.add_spacer(height=int(20 * _s))
 
             # Save / Reset buttons
             with dpg.group(horizontal=True):
                 styled_button(
                     "Save Settings", "btn_save",
                     callback=lambda: _save(bridge),
-                    variant="primary", width=140, height=32,
+                    variant="primary", width=int(140 * _s), height=int(32 * _s),
                 )
-                dpg.add_spacer(width=12)
+                dpg.add_spacer(width=int(12 * _s))
                 styled_button(
                     "Reset to Defaults", "btn_reset",
                     callback=lambda: _on_reset(bridge, on_hotkeys_changed),
-                    variant="neutral", width=160, height=32,
+                    variant="neutral", width=int(160 * _s), height=int(32 * _s),
                 )
 
     # Show only the active category
@@ -156,20 +157,22 @@ def _create_category_item(key: str, label: str):
 
     with dpg.group(horizontal=True):
         with dpg.drawlist(width=4, height=32, tag=f"cat_ind_dl_{key}"):
+            bar_w = max(3, int(4 * _s))
+            item_h = int(32 * _s)
             if is_active:
                 dpg.draw_rectangle(
-                    (0, 0), (4, 32), color=ACCENT, fill=ACCENT, tag=ind_tag,
+                    (0, 0), (bar_w, item_h), color=ACCENT, fill=ACCENT, tag=ind_tag,
                 )
             else:
                 dpg.draw_rectangle(
-                    (0, 0), (4, 32), color=(0, 0, 0, 0), fill=(0, 0, 0, 0), tag=ind_tag,
+                    (0, 0), (bar_w, item_h), color=(0, 0, 0, 0), fill=(0, 0, 0, 0), tag=ind_tag,
                 )
 
         dpg.add_button(
             label=f"  {label}",
             tag=btn_tag,
-            width=168,
-            height=32,
+            width=int(168 * _s),
+            height=item_h,
             callback=lambda: _switch_category(key),
         )
         dpg.bind_item_theme(btn_tag, _cat_active_theme if is_active else _cat_inactive_theme)

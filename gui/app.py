@@ -13,7 +13,7 @@ from gui.pages.dashboard import create_dashboard, update_dashboard_ui
 from gui.pages.logs import create_logs, update_logs_ui
 from gui.pages.settings import create_settings
 from gui.sidebar import create_sidebar, set_active_page
-from gui.theme import _FONT_PATH, FONT_SIZES, build_global_theme
+from gui.theme import _FONT_PATH, FONT_SIZES, build_global_theme, set_ui_scale
 from main import NTEFishingBot
 
 
@@ -52,27 +52,33 @@ class FishingGUI:
     def _setup_dpg(self):
         dpg.create_context()
 
-        # Font registry — load Segoe UI at multiple sizes
+        # Use pure 1.0 scale to keep base fonts crisp. OS DPI handles display size.
+        self._ui_scale = 1.0
+
+        # Font registry — load Segoe UI at scaled sizes
         self._fonts: dict[str, int | None] = {}
         with dpg.font_registry():
             for name, size in FONT_SIZES.items():
                 try:
-                    self._fonts[name] = dpg.add_font(_FONT_PATH, size)
+                    # Scale font size at rasterization for crisp text and correct widget layout
+                    scaled_size = max(8, int(size * self._ui_scale))
+                    self._fonts[name] = dpg.add_font(_FONT_PATH, scaled_size)
                 except Exception:
                     self._fonts[name] = None
 
         dpg.create_viewport(
             title=f"{APP_TITLE} Control Center",
-            width=1200,
-            height=900,
-            min_width=980,
-            min_height=780,
+            width=int(960 * self._ui_scale),
+            height=int(700 * self._ui_scale),
+            min_width=int(800 * self._ui_scale),
+            min_height=int(560 * self._ui_scale),
             always_on_top=CFG.always_on_top,
         )
         dpg.setup_dearpygui()
 
-        # Bind global theme and body font
-        dpg.bind_theme(build_global_theme())
+        # Bind global theme (scaled) and body font
+        set_ui_scale(self._ui_scale)
+        dpg.bind_theme(build_global_theme(self._ui_scale))
         if self._fonts.get("body"):
             dpg.bind_font(self._fonts["body"])
 
@@ -255,16 +261,14 @@ class FishingGUI:
         the game's ROI regions (button at bottom-right, bar at top-center)."""
         try:
             scr_w, scr_h = _get_primary_monitor_size()
-            vp_w = min(1200, scr_w)
-            vp_h = min(900, scr_h)
-            margin = 50
-            # Bottom-left corner: safe from both button ROI (bottom-right)
-            # and bar ROI (top-center).
+            vp_w = int(960 * self._ui_scale)
+            vp_h = int(700 * self._ui_scale)
+            margin = int(50 * self._ui_scale)
             x = margin
             y = scr_h - vp_h - margin
             dpg.set_viewport_pos([x, y])
         except Exception:
-            pass  # non-critical; fall back to default placement
+            pass
 
     # ── Main loop ───────────────────────────────────────────────────────
 

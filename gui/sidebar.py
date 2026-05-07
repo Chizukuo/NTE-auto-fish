@@ -9,12 +9,13 @@ from gui.theme import (
     ACCENT,
     GLASS_HIGHLIGHT,
     GLASS_HIGHLIGHT2,
-    SIDEBAR_WIDTH,
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_VERY_MUTED,
+    _ui_scale as _s,
     build_nav_item_theme,
     build_sidebar_theme,
+    get_sidebar_width,
 )
 
 # ---------------------------------------------------------------------------
@@ -53,26 +54,29 @@ def create_sidebar(on_navigate: Callable[[str], None]):
     """Build the sidebar inside the current parent group."""
     _ensure_themes()
 
+    s = _s
+    sidebar_w = get_sidebar_width()
+    margin = int(18 * s)
     with dpg.child_window(
-        width=SIDEBAR_WIDTH, height=-1, tag="sidebar",
+        width=sidebar_w, height=-1, tag="sidebar",
         border=False, no_scrollbar=True,
     ):
         dpg.bind_item_theme("sidebar", _sidebar_theme)
 
         # App title area
-        dpg.add_spacer(height=20)
+        dpg.add_spacer(height=int(20 * s))
         with dpg.group(horizontal=True):
-            dpg.add_spacer(width=18)
+            dpg.add_spacer(width=margin)
             dpg.add_text("NTE Auto-Fish", color=TEXT_PRIMARY)
         with dpg.group(horizontal=True):
-            dpg.add_spacer(width=18)
+            dpg.add_spacer(width=margin)
             dpg.add_text("Control Center", color=TEXT_VERY_MUTED)
 
-        dpg.add_spacer(height=8)
+        dpg.add_spacer(height=int(8 * s))
         with dpg.group(horizontal=True):
-            dpg.add_spacer(width=18)
+            dpg.add_spacer(width=margin)
             dpg.add_separator()
-        dpg.add_spacer(height=16)
+        dpg.add_spacer(height=int(16 * s))
 
         # Navigation items
         for name, label in NAV_PAGES:
@@ -83,9 +87,9 @@ def create_sidebar(on_navigate: Callable[[str], None]):
 
         # Hotkey hints at bottom
         with dpg.group(horizontal=True):
-            dpg.add_spacer(width=18)
+            dpg.add_spacer(width=margin)
             dpg.add_text("F8 Toggle  |  F12 Stop", color=TEXT_VERY_MUTED)
-        dpg.add_spacer(height=16)
+        dpg.add_spacer(height=int(16 * s))
 
 
 def set_active_page(page_name: str):
@@ -120,24 +124,27 @@ def _create_nav_item(name: str, label: str, on_navigate: Callable[[str], None]):
     btn_tag = f"nav_btn_{name}"
     ind_tag = f"nav_ind_{name}"
 
+    nav_h = int(40 * _s)
+    bar_w = max(3, int(4 * _s))
+    sidebar_w = get_sidebar_width()
     with dpg.group(horizontal=True):
-        # 3px accent indicator bar
-        with dpg.drawlist(width=4, height=40, tag=f"nav_ind_dl_{name}"):
+        # Accent indicator bar
+        with dpg.drawlist(width=bar_w, height=nav_h, tag=f"nav_ind_dl_{name}"):
             if is_active:
                 dpg.draw_rectangle(
-                    (0, 0), (4, 40), color=ACCENT, fill=ACCENT, tag=ind_tag,
+                    (0, 0), (bar_w, nav_h), color=ACCENT, fill=ACCENT, tag=ind_tag,
                 )
             else:
                 dpg.draw_rectangle(
-                    (0, 0), (4, 40), color=(0, 0, 0, 0), fill=(0, 0, 0, 0), tag=ind_tag,
+                    (0, 0), (bar_w, nav_h), color=(0, 0, 0, 0), fill=(0, 0, 0, 0), tag=ind_tag,
                 )
 
         # Nav button
         dpg.add_button(
             label=f"  {label}",
             tag=btn_tag,
-            width=SIDEBAR_WIDTH - 24,
-            height=40,
+            width=sidebar_w - int(24 * _s),
+            height=nav_h,
             callback=lambda s, a, u: _navigate(name, on_navigate),
         )
         dpg.bind_item_theme(btn_tag, _nav_active_theme if is_active else _nav_inactive_theme)

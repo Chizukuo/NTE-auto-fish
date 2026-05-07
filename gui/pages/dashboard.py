@@ -33,6 +33,7 @@ from gui.theme import (
     VIS_TRACK,
     build_button_theme,
 )
+from gui.theme import _ui_scale as _s
 from modules.logic import FishingState
 
 # ---------------------------------------------------------------------------
@@ -40,7 +41,6 @@ from modules.logic import FishingState
 # ---------------------------------------------------------------------------
 
 _pid_history: deque[float] = deque([0.0] * 120, maxlen=120)
-_vis_height = 72
 _card_tags = ["state_card", "fish_card", "time_card", "fps_card"]
 _cards_resized = False
 
@@ -80,7 +80,7 @@ def _state_button_theme(bg, hovered, active) -> int:
             dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, hovered)
             dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, active)
             dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6)
+            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6 * _s)
     return theme
 
 
@@ -95,65 +95,63 @@ def create_dashboard(
     on_stop: Callable[[], None] | None = None,
     on_recalibrate: Callable[[], None] | None = None,
 ):
-    global _cards_resized
-    _ensure_themes()
-    _cards_resized = False
+    # State is handled by _resize_stat_cards directly now
 
     # ── Row 1: Status metric cards ──────────────────────────────────────
     # Initial width is a placeholder; update_dashboard_ui resizes on first frame.
     _init_w = 200
+    _gap = int(CARD_GAP * _s)
     with dpg.group(horizontal=True, tag="stat_cards_row"):
         _create_stat_card("state_card", "STATE", "Idle", width=_init_w)
-        dpg.add_spacer(width=CARD_GAP)
+        dpg.add_spacer(width=_gap)
         _create_stat_card("fish_card", "FISH CAUGHT", "0", width=_init_w)
-        dpg.add_spacer(width=CARD_GAP)
+        dpg.add_spacer(width=_gap)
         _create_stat_card("time_card", "SESSION TIME", "00:00:00", width=_init_w)
-        dpg.add_spacer(width=CARD_GAP)
+        dpg.add_spacer(width=_gap)
         _create_stat_card("fps_card", "FPS", "0.0", width=_init_w)
 
-    dpg.add_spacer(height=CARD_GAP)
+    dpg.add_spacer(height=_gap)
 
-    # ── Row 2: Control bar ──────────────────────────────────────────────
     with dpg.child_window(
-        height=72, tag="control_bar", border=True, no_scrollbar=True,
+        height=int(60 * _s), tag="control_bar", border=True, no_scrollbar=True,
     ):
         apply_glass_card_theme("control_bar")
         with dpg.group(horizontal=True):
             styled_button(
                 "Start", "btn_start_bot",
                 callback=lambda s, a, u: _run_callback(on_start, bridge, "resume"),
-                variant="primary", width=80, height=28,
+                variant="primary", width=int(80 * _s), height=int(28 * _s),
             )
-            dpg.add_spacer(width=8)
+            dpg.add_spacer(width=int(8 * _s))
             styled_button(
                 "Pause", "btn_pause_bot",
                 callback=lambda s, a, u: bridge.send_cmd("pause"),
-                variant="warning", width=80, height=28,
+                variant="warning", width=int(80 * _s), height=int(28 * _s),
             )
-            dpg.add_spacer(width=8)
+            dpg.add_spacer(width=int(8 * _s))
             styled_button(
                 "Stop", "btn_stop_bot",
                 callback=lambda s, a, u: _run_callback(on_stop, bridge, "stop"),
-                variant="danger", width=80, height=28,
+                variant="danger", width=int(80 * _s), height=int(28 * _s),
             )
-            dpg.add_spacer(width=8)
+            dpg.add_spacer(width=int(8 * _s))
             styled_button(
                 "Calibrate", "btn_recalibrate",
                 callback=lambda s, a, u: _run_callback(on_recalibrate, bridge, "recalibrate"),
-                variant="neutral", width=90, height=28,
+                variant="neutral", width=int(90 * _s), height=int(28 * _s),
             )
-            dpg.add_spacer(width=24)
+            dpg.add_spacer(width=int(24 * _s))
             dpg.add_text("Ready", tag="stat_status_message", color=TEXT_MUTED)
 
     dpg.add_spacer(height=CARD_GAP)
 
     # ── Row 3: PID plot + Telemetry + Vision tracker ────────────────────
     # Right column width; PID plot fills remaining space.
-    _right_w = 380
+    _right_w = int(300 * _s)
     with dpg.group(horizontal=True):
         # Left: PID Plot
         with dpg.child_window(
-            width=-(_right_w + CARD_GAP + 20), height=500,
+            width=-(_right_w + int(CARD_GAP * _s) + int(20 * _s)), height=-1,
             tag="pid_card", border=True, no_scrollbar=True,
         ):
             apply_glass_card_theme("pid_card")
@@ -170,16 +168,16 @@ def create_dashboard(
                     )
                 dpg.set_axis_limits("pid_y", -110, 110)
 
-        dpg.add_spacer(width=CARD_GAP)
+        dpg.add_spacer(width=int(CARD_GAP * _s))
 
         # Right column (transparent container)
         with dpg.child_window(
-            width=_right_w, height=500,
+            width=_right_w, height=-1,
             tag="right_col", border=False, no_scrollbar=True,
         ):
             # Telemetry card
             with dpg.child_window(
-                height=320, tag="telemetry_card", border=True, no_scrollbar=True,
+                height=int(260 * _s), tag="telemetry_card", border=True, no_scrollbar=True,
             ):
                 apply_glass_card_theme("telemetry_card")
                 section_header("Telemetry", color=ACCENT_BLUE)
@@ -192,7 +190,7 @@ def create_dashboard(
                 metric_row("Button ROI", "tele_button_roi")
                 metric_row("Bar ROI", "tele_bar_roi")
 
-            dpg.add_spacer(height=CARD_GAP)
+            dpg.add_spacer(height=int(CARD_GAP * _s))
 
             # Vision tracker card
             with dpg.child_window(
@@ -209,13 +207,10 @@ def create_dashboard(
 
 
 def update_dashboard_ui(bridge: BotBridge):
-    global _cards_resized
     status = bridge.latest_status()
 
-    # Resize stat cards to fill the row exactly once (or on viewport change).
-    if not _cards_resized:
-        _resize_stat_cards()
-        _cards_resized = True
+    # Resize stat cards to fill the row dynamically on window resize.
+    _resize_stat_cards()
 
     # Stat cards
     dpg.set_value("state_card_value", _state_label(status.state))
@@ -252,17 +247,22 @@ def update_dashboard_ui(bridge: BotBridge):
     _update_visualizer(status)
 
 
+_last_container_w = 0
+
 def _resize_stat_cards():
-    """Calculate card width from actual container size and apply."""
+    """Calculate card width from actual container size and apply dynamically."""
+    global _last_container_w
     try:
         container_w = dpg.get_item_rect_size("page_container")[0]
     except Exception:
         return
-    if container_w <= 0:
+    if container_w <= 0 or container_w == _last_container_w:
         return
-    # Available width minus 3 gaps between 4 cards, minus child_window padding
-    usable = container_w - 3 * CARD_GAP - 2 * CARD_PADDING
-    card_w = max(120, usable // 4)
+    _last_container_w = container_w
+    gap = int(CARD_GAP * _s)
+    pad = int(CARD_PADDING * _s)
+    usable = container_w - 3 * gap - 2 * pad
+    card_w = max(int(120 * _s), usable // 4)
     for tag in _card_tags:
         try:
             dpg.configure_item(tag, width=card_w)
@@ -276,7 +276,8 @@ def _resize_stat_cards():
 
 
 def _create_visualizer():
-    with dpg.drawlist(width=1, height=_vis_height, tag="visualizer"):
+    vis_h = int(72 * _s)
+    with dpg.drawlist(width=1, height=vis_h, tag="visualizer"):
         dpg.draw_rectangle(
             (0, 0), (1, 1), color=(70, 75, 82),
             fill=VIS_TRACK, rounding=17, tag="vis_track",
@@ -308,7 +309,7 @@ def _update_visualizer(status: BotStatus):
     except Exception:
         return
 
-    dpg.configure_item("visualizer", width=width, height=_vis_height)
+    dpg.configure_item("visualizer", width=width, height=int(72 * _s))
     track_left = 18
     track_right = width - 18
     track_top = 20
@@ -358,7 +359,7 @@ def _scaled_x(value: int, bar_width: int, track_left: int, scale: float) -> floa
 
 def _create_stat_card(tag: str, label: str, default: str, width: int = 200):
     with dpg.child_window(
-        width=width, height=120, tag=tag, border=True, no_scrollbar=True,
+        width=width, height=int(100 * _s), tag=tag, border=True, no_scrollbar=True,
     ):
         apply_glass_card_theme(tag)
         dpg.add_text(label, color=TEXT_VERY_MUTED)
