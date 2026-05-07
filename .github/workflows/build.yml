@@ -71,13 +71,13 @@ jobs:
           start_gui.py
 
     - name: Package CLI source
-      shell: bash
+      shell: pwsh
       run: |
-        mkdir -p dist/cli-package
-        cp main.py config.py requirements.txt run.bat dist/cli-package/
-        cp -r modules dist/cli-package/
-        cp -r templates dist/cli-package/
-        cd dist && zip -r NTE-Auto-Fish-CLI.zip cli-package
+        New-Item -ItemType Directory -Force -Path dist/cli-package/modules, dist/cli-package/templates | Out-Null
+        Copy-Item main.py, config.py, requirements.txt, run.bat dist/cli-package/
+        Copy-Item modules/* dist/cli-package/modules/
+        Copy-Item templates/* dist/cli-package/templates/
+        Compress-Archive -Path dist/cli-package/* -DestinationPath dist/NTE-Auto-Fish-CLI.zip
 
     - name: Upload GUI Artifact
       uses: actions/upload-artifact@v4
