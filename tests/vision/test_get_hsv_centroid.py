@@ -20,7 +20,7 @@ class TestHSVCentroid(unittest.TestCase):
         cls.hsv_centroid_bar_negative_images = sorted(
             (cls.data_dir / "hsv_centroid_bar_negative").glob("*.png")
         )
-        
+
         cls.hsv_centroid_cursor_positive_images = sorted(
             (cls.data_dir / "hsv_centroid_cursor_positive").glob("*.png")
         )

@@ -46,6 +46,9 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
 
+    - name: Run tests
+      run: python -m unittest discover -s tests -v
+
     - name: Build GUI (single EXE)
       shell: bash
       run: |
