@@ -70,30 +70,14 @@ jobs:
           --name NTE-Auto-Fish \
           start_gui.py
 
-    - name: Build CLI (single EXE)
+    - name: Package CLI source
       shell: bash
       run: |
-        pyinstaller --noconfirm --onefile --console --icon=NONE \
-          --add-data "templates;templates" \
-          --exclude-module tkinter \
-          --exclude-module unittest \
-          --exclude-module test \
-          --exclude-module email \
-          --exclude-module http \
-          --exclude-module xml \
-          --exclude-module pydoc \
-          --exclude-module multiprocessing \
-          --exclude-module asyncio \
-          --exclude-module sqlite3 \
-          --exclude-module lib2to3 \
-          --exclude-module distutils \
-          --exclude-module setuptools \
-          --exclude-module _decimal \
-          --exclude-module _lzma \
-          --exclude-module _bz2 \
-          --exclude-module dearpygui \
-          --name NTE-Auto-Fish-CLI \
-          main.py
+        mkdir -p dist/cli-package
+        cp main.py config.py requirements.txt run.bat dist/cli-package/
+        cp -r modules dist/cli-package/
+        cp -r templates dist/cli-package/
+        cd dist && zip -r NTE-Auto-Fish-CLI.zip cli-package
 
     - name: Upload GUI Artifact
       uses: actions/upload-artifact@v4
@@ -105,7 +89,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: NTE-Auto-Fish-CLI-Windows
-        path: dist/NTE-Auto-Fish-CLI.exe
+        path: dist/NTE-Auto-Fish-CLI.zip
 
     - name: Upload Release Artifacts
       if: needs.release-please.outputs.release_created == 'true'
@@ -114,4 +98,4 @@ jobs:
         tag_name: ${{ needs.release-please.outputs.tag_name }}
         files: |
           dist/NTE-Auto-Fish.exe
-          dist/NTE-Auto-Fish-CLI.exe
+          dist/NTE-Auto-Fish-CLI.zip

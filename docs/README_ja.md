@@ -13,6 +13,7 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 [![GitHub License](https://img.shields.io/github/license/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/blob/main/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/releases)
 [![Build Status](https://github.com/Chizukuo/NTE-auto-fish/actions/workflows/build.yml/badge.svg)](https://github.com/Chizukuo/NTE-auto-fish/actions)
+[![GitHub Stars](https://img.shields.io/github/stars/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/stargazers)
 
 </div>
 
@@ -21,9 +22,9 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 - **ライブ操作パネル**：状態、釣果数、セッション時間、FPS、PID 出力、ROI、視覚トラッキングの状態を GUI で確認できます。
 - **安全な制御フロー**：GUI 起動時は一時停止状態で開始し、停止コマンドを優先処理し、一時停止・停止・再校正・終了時に押下中のキーを解放します。
 - **実行中の調整**：PID、HSV しきい値、タイミング、入力キー、グローバルホットキー、校正、デバッグ設定を Settings タブから調整できます。
-- **解像度への適応**：マルチスケールのテンプレートマッチングと比率ベースのフォールバックにより、1080p、2K、4K などに対応します。
+- **解像度への適応**：比率ベースの ROI 校正と解像度比例フォールバックにより、1080p、2K、4K およびカスタム解像度に自動対応します。
 - **高速なキャプチャと入力**：`mss` で画面領域を取得し、`PyDirectInput` でゲーム向けの入力イベントを送信します。
-- **ポータブルビルド**：GitHub Actions で GUI 版と CLI 版の単一ファイル Windows 実行ファイルを生成します。
+- **ポータブルビルド**：GitHub Actions が GUI 用の単一ファイル EXE と、初回実行時に依存関係を自動インストールする CLI ソースパッケージを生成します。
 
 ## プロジェクト構成
 
@@ -34,18 +35,23 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 | `config.py` | PID、HSV、キー、タイミング、校正の実行時設定。 |
 | `gui/` | DearPyGui の操作画面、パネル、スレッド安全なブリッジ。 |
 | `modules/` | キャプチャ、入力、画像認識、釣りロジックのモジュール。 |
-| `templates/` | 校正に使う任意のテンプレートと比率データ。 |
+| `templates/` | 自動 ROI 校正用の比率データ。 |
 | `tools/ratio_annotator.py` | スクリーンショットから比率ベースの ROI JSON を作成する補助ツール。 |
 
 ## はじめ方
 
-### 方法 1：ビルド済み実行ファイル
+### 方法 1：ビルド済み実行ファイル（GUI）
 
 1. [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) から最新の `NTE-Auto-Fish.exe` をダウンロードします。
 2. ゲームへ入力を届けるため、管理者権限で実行します。
-3. 任意で、実行ファイルと同じ階層に `templates/` フォルダーを作り、`button_f.png` と `bar_icon_left.png` を配置すると校正精度が上がります。
 
-### 方法 2：ソースから実行
+### 方法 2：CLI パッケージ
+
+1. [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) から `NTE-Auto-Fish-CLI.zip` をダウンロードして展開します。
+2. `run.bat` をダブルクリックすると、Python の確認と初回実行時の依存パッケージ自動インストールが行われます。
+3. 詳細はターミナルで `python main.py --help` を実行してください。利用可能なコマンド：`start`、`calibrate`、`config show/set`、`reset`。
+
+### 方法 3：ソースから実行
 
 ```bash
 git clone https://github.com/Chizukuo/NTE-auto-fish.git

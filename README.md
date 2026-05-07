@@ -13,6 +13,7 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 [![GitHub License](https://img.shields.io/github/license/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/blob/main/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/releases)
 [![Build Status](https://github.com/Chizukuo/NTE-auto-fish/actions/workflows/build.yml/badge.svg)](https://github.com/Chizukuo/NTE-auto-fish/actions)
+[![GitHub Stars](https://img.shields.io/github/stars/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/stargazers)
 
 </div>
 
@@ -21,9 +22,9 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 - **Live control center**: Track bot state, fish count, session time, FPS, PID output, ROI data, and vision health in one GUI.
 - **Safer controls**: The GUI starts paused, handles stop commands urgently, and releases held keys during pause, stop, recalibration, and shutdown.
 - **Runtime tuning**: PID, HSV thresholds, timing, input keys, hotkeys, calibration, and debug options can be adjusted from the Settings tab.
-- **Resolution adaptation**: Multi-scale template matching and ratio-based fallback support common 1080p, 2K, 4K, and custom display sizes.
+- **Resolution adaptation**: Ratio-based ROI calibration with resolution-proportional fallback supports 1080p, 2K, 4K, and custom display sizes automatically.
 - **Fast capture and input**: `mss` captures screen regions efficiently, while `PyDirectInput` sends game-friendly input events.
-- **Portable builds**: GitHub Actions builds single-file Windows executables for GUI and CLI workflows.
+- **Portable builds**: GitHub Actions produces a single-file Windows EXE for GUI and a lightweight source package for CLI that auto-installs dependencies on first run.
 
 ## Project Structure
 
@@ -34,18 +35,23 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 | `config.py` | Runtime configuration for PID, HSV, keys, timing, and calibration. |
 | `gui/` | DearPyGui control center, panels, and thread-safe bridge. |
 | `modules/` | Capture, input, vision, and fishing logic modules. |
-| `templates/` | Optional template and ratio data for calibration. |
+| `templates/` | Ratio data for automatic ROI calibration. |
 | `tools/ratio_annotator.py` | Utility for creating ratio-based ROI JSON from screenshots. |
 
 ## Getting Started
 
-### Option 1: Prebuilt Executable
+### Option 1: Prebuilt Executable (GUI)
 
 1. Download the latest `NTE-Auto-Fish.exe` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases).
 2. Run it as Administrator so simulated input can reach the game.
-3. Optional: place `button_f.png` and `bar_icon_left.png` in a `templates/` folder next to the executable for more precise calibration.
 
-### Option 2: Run From Source
+### Option 2: CLI Package
+
+1. Download `NTE-Auto-Fish-CLI.zip` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) and extract it.
+2. Double-click `run.bat` — it checks for Python, then auto-installs missing dependencies on first run.
+3. For more options, run `python main.py --help` in a terminal. Available commands: `start`, `calibrate`, `config show/set`, `reset`.
+
+### Option 3: Run From Source
 
 ```bash
 git clone https://github.com/Chizukuo/NTE-auto-fish.git
