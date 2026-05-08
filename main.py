@@ -589,6 +589,15 @@ class NTEFishingBot:
         self._stop_event.wait(timeout=self.cfg.timing.struggling_poll_interval)
 
     def _handle_result(self) -> None:
+        # Check for error dialog early — it auto-dismisses in ~2s
+        if self._roi_error:
+            err_img = self.capture.grab_bgr(self._roi_error)
+            if self.vision.check_error_region(err_img):
+                self._log("[RESULT] Error dialog detected (fish escaped?).")
+                self.sm.transition(FishingState.IDLE)
+                self._push_status()
+                return
+
         self._stop_event.wait(timeout=self.cfg.timing.result_wait_secs)
         if self._stop_flag:
             return
