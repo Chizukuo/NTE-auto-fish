@@ -201,6 +201,7 @@ class NTEFishingBot:
             self._log("Bot paused by user.")
         elif cmd == "resume":
             if not self._is_stopped:
+                self._bait_error_count = 0
                 self._is_paused = False
                 self._log("Bot resumed by user.")
         elif cmd == "recalibrate":
@@ -358,26 +359,6 @@ class NTEFishingBot:
                     if cur_x is not None or tgt_x is not None:
                         self._log(f"[{state.value}] Bar detected → STRUGGLING.")
                         self._enter_struggling()
-                        self._push_status()
-                        continue
-
-                # --- Priority 2: error dialog detection (IDLE & WAITING) ---
-                if state in (FishingState.IDLE, FishingState.WAITING) and self._roi_error:
-                    err_img = self.capture.grab_bgr(self._roi_error)
-                    if self.vision.check_error_region(err_img):
-                        self._bait_error_count += 1
-                        self._log(
-                            f"[ERROR] Cast error ({self._bait_error_count}/{_BAIT_ERROR_THRESHOLD}), "
-                            "waiting for dialog to dismiss..."
-                        )
-                        self.input.release_all()
-                        self._stop_event.wait(timeout=5.0)
-                        if self._bait_error_count >= _BAIT_ERROR_THRESHOLD:
-                            self._log("[ERROR] Bait likely exhausted, stopping bot.")
-                            self.request_stop()
-                            self._push_status()
-                            continue
-                        self.sm.transition(FishingState.IDLE)
                         self._push_status()
                         continue
 
