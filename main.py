@@ -16,6 +16,8 @@ import time
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Optional
 
+from screeninfo import get_monitors
+
 from config import CFG, AppConfig, DEFAULT_SETTINGS_PATH
 from modules.logic import FishingState, FishingStateMachine, PIDController
 from modules.utils import APP_DIR, bundled_path
@@ -213,10 +215,28 @@ class NTEFishingBot:
             self.request_stop()
             self._log("Bot stop requested.")
 
+    @staticmethod
+    def get_active_monitor():
+        monitors = get_monitors()
+
+        index = max(0, min(CFG.monitor_index, len(monitors) - 1))
+
+        return monitors[index]
+
     def calibrate(self) -> None:
         self._log("[Calibration] Capturing full screen...")
-        scene = self.capture.grab_full_screen()
-        self._screen_w, self._screen_h = self.capture.get_screen_size()
+
+        mon = self.get_active_monitor()
+
+        region = {
+            "left": mon.x,
+            "top": mon.y,
+            "width": mon.width,
+            "height": mon.height,
+        }
+
+        scene = self.capture.grab_bgr(region)
+        self._screen_w, self._screen_h = mon.width, mon.height
         scale = min(self._screen_w / _DEFAULT_SCREEN_W, self._screen_h / _DEFAULT_SCREEN_H)
         self._scaled_min_area = max(50.0 * scale * scale, 1.0)
         pad = self.cfg.calibration.roi_padding

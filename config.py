@@ -108,6 +108,7 @@ class AppConfig:
     result_close_method: str = "click"
     debug_mode: bool = False
     always_on_top: bool = True
+    monitor_index: int = 0
 
     def save(self, path=None):
         path = path or DEFAULT_SETTINGS_PATH
