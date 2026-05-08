@@ -29,6 +29,7 @@ from gui.theme import (
     _ui_scale as _s,
     build_settings_cat_theme,
 )
+from screeninfo import get_monitors
 
 # ---------------------------------------------------------------------------
 # Category definitions
@@ -344,6 +345,18 @@ def _build_input_settings(
             callback=lambda s, d: _set(CFG, "debug_mode", d),
         )
 
+        monitors = _monitor_labels()
+        default_monitor = min(CFG.monitor_index, len(monitors) - 1)
+
+        dpg.add_combo(
+            label="Monitor",
+            tag="cfg_monitor_index",
+            items=monitors,
+            default_value=monitors[default_monitor],
+            width=300,
+            callback=lambda s, d: _set_monitor(d, monitors),
+        )
+
         dpg.add_spacer(height=12)
         dpg.add_text("Global Hotkeys", color=TEXT_MUTED)
         dpg.add_spacer(height=4)
@@ -532,6 +545,8 @@ def _refresh_values():
     dpg.set_value("cfg_cal_confidence", CFG.calibration.confidence_threshold)
     dpg.set_value("cfg_cal_roi_padding", CFG.calibration.roi_padding)
 
+    dpg.set_value("cfg_monitor_index", CFG.monitor_index)
+
     dpg.set_value("cfg_hotkey_toggle", CFG.hotkeys.toggle)
     dpg.set_value("cfg_hotkey_stop", CFG.hotkeys.stop)
 
@@ -559,6 +574,11 @@ def _set_key(attr: str, val: str, tag: str):
     else:
         dpg.set_value(tag, getattr(CFG.keys, attr))
 
+def _set_monitor(selected: str, monitors: list[str]):
+    try:
+        CFG.monitor_index = monitors.index(selected)
+    except ValueError:
+        CFG.monitor_index = 0
 
 def _set_hotkey(
     attr: str,
@@ -578,3 +598,16 @@ def _result_method_label(value: str) -> str:
         if method == value:
             return label
     return "Click center"
+
+
+def _monitor_labels():
+    labels = []
+
+    for i, m in enumerate(get_monitors()):
+        primary = " (Primary)" if m.is_primary else ""
+
+        labels.append(
+            f"Monitor {i}{primary} - {m.width}x{m.height}"
+        )
+
+    return labels

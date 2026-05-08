@@ -4,3 +4,4 @@ mss
 pydirectinput
 dearpygui
 keyboard
+screeninfo

@@ -38,17 +38,6 @@ class CaptureModule:
         raw = self._get_sct().grab(roi)
         return np.ascontiguousarray(np.array(raw)[..., :3])
 
-    def grab_full_screen(self) -> np.ndarray:
-        """Capture the primary monitor for cold-start calibration."""
-        sct = self._get_sct()
-        return self.grab_bgr(sct.monitors[1])
-
-    def get_screen_size(self) -> tuple[int, int]:
-        """Return the primary monitor size as (width, height)."""
-        sct = self._get_sct()
-        m = sct.monitors[1]
-        return m["width"], m["height"]
-
     def close(self) -> None:
         if self._sct is None:
             return
