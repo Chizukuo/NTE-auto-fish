@@ -361,8 +361,8 @@ class NTEFishingBot:
                         self._push_status()
                         continue
 
-                # --- Priority 2: error dialog detection (IDLE only) ---
-                if state is FishingState.IDLE and self._roi_error:
+                # --- Priority 2: error dialog detection (IDLE & WAITING) ---
+                if state in (FishingState.IDLE, FishingState.WAITING) and self._roi_error:
                     err_img = self.capture.grab_bgr(self._roi_error)
                     if self.vision.check_error_region(err_img):
                         self._bait_error_count += 1
