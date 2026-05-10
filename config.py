@@ -193,13 +193,16 @@ def jitter(base: float, spread: float, minimum: float = 0.0) -> float:
 
 def sample_reaction(min_val: float, max_val: float, dist: str = "uniform") -> float:
     """Sample a reaction delay from the specified distribution."""
+    if min_val >= max_val:
+        return min_val
     if dist == "gaussian":
         mean = (min_val + max_val) / 2
         std = (max_val - min_val) / 6  # 99.7% within range
         return max(min_val, min(max_val, random.gauss(mean, std)))
     if dist == "exponential":
         span = max_val - min_val
-        return min_val + random.expovariate(1.0 / (span / 3))
+        # mean = span/3, so most values cluster toward the low end
+        return min(max_val, min_val + random.expovariate(3.0 / span))
     return random.uniform(min_val, max_val)
 
 

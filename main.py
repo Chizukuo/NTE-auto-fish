@@ -561,13 +561,13 @@ class NTEFishingBot:
                     hold_t = random.uniform(hcfg.pulse_hold_min, hcfg.pulse_hold_max)
                     gap_t = random.uniform(hcfg.pulse_release_min, hcfg.pulse_release_max)
                     self.input.release(self.cfg.keys.left)
-                    self.input.pulse_hold(self.cfg.keys.right, hold_t, gap_t)
+                    self.input.pulse_hold(self.cfg.keys.right, hold_t, gap_t, self._stop_event)
                     action = "RIGHT"
                 elif output < -deadband:
                     hold_t = random.uniform(hcfg.pulse_hold_min, hcfg.pulse_hold_max)
                     gap_t = random.uniform(hcfg.pulse_release_min, hcfg.pulse_release_max)
                     self.input.release(self.cfg.keys.right)
-                    self.input.pulse_hold(self.cfg.keys.left, hold_t, gap_t)
+                    self.input.pulse_hold(self.cfg.keys.left, hold_t, gap_t, self._stop_event)
                     action = "LEFT"
                 else:
                     self.input.release(self.cfg.keys.left)
