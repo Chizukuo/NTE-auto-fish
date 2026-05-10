@@ -93,6 +93,8 @@ class NTEFishingBot:
         self._fish_count = 0
         self._screen_w = 0
         self._screen_h = 0
+        self._mon_x = 0
+        self._mon_y = 0
         self._scaled_min_area = 50.0
 
         self._last_pid_out = 0.0
@@ -216,13 +218,21 @@ class NTEFishingBot:
             self.request_stop()
             self._log("Bot stop requested.")
 
-    @staticmethod
-    def get_active_monitor():
+    def get_active_monitor(self):
         monitors = get_monitors()
 
-        index = max(0, min(CFG.monitor_index, len(monitors) - 1))
+        index = max(0, min(self.cfg.monitor_index, len(monitors) - 1))
 
         return monitors[index]
+
+    def _offset_roi(self, roi: dict) -> dict:
+        """Shift a monitor-local ROI to screen-absolute coordinates."""
+        return {
+            "left": roi["left"] + self._mon_x,
+            "top": roi["top"] + self._mon_y,
+            "width": roi["width"],
+            "height": roi["height"],
+        }
 
     def calibrate(self) -> None:
         self._log("[Calibration] Capturing full screen...")
@@ -238,6 +248,7 @@ class NTEFishingBot:
 
         scene = self.capture.grab_bgr(region)
         self._screen_w, self._screen_h = mon.width, mon.height
+        self._mon_x, self._mon_y = mon.x, mon.y
         scale = min(self._screen_w / _DEFAULT_SCREEN_W, self._screen_h / _DEFAULT_SCREEN_H)
         self._scaled_min_area = max(50.0 * scale * scale, 1.0)
         pad = self.cfg.calibration.roi_padding
@@ -252,35 +263,35 @@ class NTEFishingBot:
                 data = json.load(handle)
             if data and isinstance(data, list) and "ratios" in data[0]:
                 ratios = data[0]["ratios"]
-                self._roi_bar = {
+                self._roi_bar = self._offset_roi({
                     "top": round(self._screen_h * ratios["top"]),
                     "left": round(self._screen_w * ratios["left"]),
                     "width": round(self._screen_w * ratios["width"]),
                     "height": round(self._screen_h * ratios["height"]),
-                }
+                })
                 self._log(f"[Calibration] Bar ROI (ratio) -> {self._roi_bar}")
             else:
                 raise ValueError("no valid ratio data")
         except Exception:
             scale_w = self._screen_w / _DEFAULT_SCREEN_W
             scale_h = self._screen_h / _DEFAULT_SCREEN_H
-            self._roi_bar = {
+            self._roi_bar = self._offset_roi({
                 "top": int(118 * scale_h),
                 "left": int(1209 * scale_w),
                 "width": int(1441 * scale_w),
                 "height": int(64 * scale_h),
-            }
+            })
             self._log(f"[Calibration] Bar ROI (fallback) -> {self._roi_bar}")
 
         # --- Button ROI (template matching with resolution fallback) ---
         scale_w = self._screen_w / _DEFAULT_SCREEN_W
         scale_h = self._screen_h / _DEFAULT_SCREEN_H
-        button_fallback = {
+        button_fallback = self._offset_roi({
             "top": int(1760 * scale_h),
             "left": int(3400 * scale_w),
             "width": int(440 * scale_w),
             "height": int(360 * scale_h),
-        }
+        })
 
         tmpl_f = cv2.imread(_resource_path("templates", "button_f.png"))
         if tmpl_f is not None:
@@ -291,12 +302,12 @@ class NTEFishingBot:
             )
             if result:
                 x1, y1, x2, y2 = result
-                self._roi_button = {
+                self._roi_button = self._offset_roi({
                     "top": max(0, y1 - pad),
                     "left": max(0, x1 - pad),
                     "width": (x2 - x1) + pad * 2,
                     "height": (y2 - y1) + pad * 2,
-                }
+                })
                 self._log(f"[Calibration] Button ROI (template) -> {self._roi_button}")
             else:
                 self._roi_button = button_fallback
@@ -318,12 +329,12 @@ class NTEFishingBot:
                 data = json.load(handle)
             if data and isinstance(data, list) and "ratios" in data[0]:
                 ratios = data[0]["ratios"]
-                self._roi_error = {
+                self._roi_error = self._offset_roi({
                     "top": round(self._screen_h * ratios["top"]),
                     "left": round(self._screen_w * ratios["left"]),
                     "width": round(self._screen_w * ratios["width"]),
                     "height": round(self._screen_h * ratios["height"]),
-                }
+                })
                 self._log(f"[Calibration] Loaded dialog ROI -> {self._roi_error}")
         except Exception as exc:
             self._log(f"Failed to load {error_json}: {exc}", logging.ERROR)
@@ -708,8 +719,8 @@ class NTEFishingBot:
         self._fish_count += 1
         self._log(f"[RESULT] Fish #{self._fish_count}.")
         if self.cfg.result_close_method == "click":
-            cx = self._screen_w // 2 if self._screen_w else _RESULT_CLOSE_FALLBACK_X
-            cy = self._screen_h // 2 if self._screen_h else _RESULT_CLOSE_FALLBACK_Y
+            cx = self._mon_x + (self._screen_w // 2 if self._screen_w else _RESULT_CLOSE_FALLBACK_X)
+            cy = self._mon_y + (self._screen_h // 2 if self._screen_h else _RESULT_CLOSE_FALLBACK_Y)
             self.input.click(cx, cy)
         else:
             exit_dur = self.cfg.timing.key_press_duration

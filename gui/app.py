@@ -261,7 +261,8 @@ class FishingGUI:
         """Move the GUI window to the bottom-left corner to avoid overlapping
         the game's ROI regions (button at bottom-right, bar at top-center)."""
         try:
-            mon = get_monitors()[CFG.monitor_index]
+            monitors = get_monitors()
+            mon = monitors[min(CFG.monitor_index, len(monitors) - 1)]
             vp_w = int(960 * self._ui_scale)
             vp_h = int(700 * self._ui_scale)
             margin = int(50 * self._ui_scale)

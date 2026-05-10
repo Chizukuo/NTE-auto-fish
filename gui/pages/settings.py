@@ -691,7 +691,9 @@ def _refresh_values():
     dpg.set_value("cfg_cal_confidence", CFG.calibration.confidence_threshold)
     dpg.set_value("cfg_cal_roi_padding", CFG.calibration.roi_padding)
 
-    dpg.set_value("cfg_monitor_index", CFG.monitor_index)
+    monitors = _monitor_labels()
+    idx = min(CFG.monitor_index, len(monitors) - 1)
+    dpg.set_value("cfg_monitor_index", monitors[idx])
 
     dpg.set_value("cfg_hotkey_toggle", CFG.hotkeys.toggle)
     dpg.set_value("cfg_hotkey_stop", CFG.hotkeys.stop)

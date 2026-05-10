@@ -88,13 +88,7 @@ INPUT_ROUNDING = 8
 BUTTON_ROUNDING = 6
 SIDEBAR_WIDTH = 180
 
-import ctypes
-
 def _compute_initial_scale() -> float:
-    try:
-        ctypes.windll.shcore.SetProcessDpiAwareness(1)
-    except Exception:
-        pass
     # We maintain 1.0 scale to keep crisp 16px fonts and a stable layout.
     # OS DPI scaling will handle high-DPI sizing correctly.
     return 1.0
