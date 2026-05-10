@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.5.0...v0.6.0) (2026-05-10)
+
+
+### Features
+
+* add humanization layer with configurable natural variation ([933fc95](https://github.com/Chizukuo/NTE-auto-fish/commit/933fc95ca748de1e3125c36993ef2b5f44cf41ab)), closes [#9](https://github.com/Chizukuo/NTE-auto-fish/issues/9)
+* embed admin elevation manifest in GUI exe ([b166e61](https://github.com/Chizukuo/NTE-auto-fish/commit/b166e61ffd189ccda02ea94b2846e6d1732df87c))
+* embed version from version.txt in build artifacts and window title ([aab4b82](https://github.com/Chizukuo/NTE-auto-fish/commit/aab4b82f6ec3f081d43d3f0e1b6befddb6994d63))
+
+
+### Bug Fixes
+
+* apply monitor offset to ROIs for correct multi-monitor coordinates ([cd37599](https://github.com/Chizukuo/NTE-auto-fish/commit/cd37599e832d0169822ed6aa6e8cce895671ba1a)), closes [#13](https://github.com/Chizukuo/NTE-auto-fish/issues/13)
+* correct DPG callback arg count for category button ([7821698](https://github.com/Chizukuo/NTE-auto-fish/commit/7821698d31c5a1f3d2e57bd619803ba7e34389b1))
+* harden imports, config, logging, and thread safety ([e69fe4e](https://github.com/Chizukuo/NTE-auto-fish/commit/e69fe4e038affce0f9ca1a75b2122593ec613954))
+* increase result_wait_secs default from 2.2s to 3.0s ([9b7c30e](https://github.com/Chizukuo/NTE-auto-fish/commit/9b7c30e49c10140f97495650753bf22e636840a1)), closes [#8](https://github.com/Chizukuo/NTE-auto-fish/issues/8)
+* make pulse_hold stop-aware and harden sample_reaction ([c6ad421](https://github.com/Chizukuo/NTE-auto-fish/commit/c6ad421b07838b88d116e5a553175039d6dbdd26))
+* rename calibration log to avoid false error coloring in GUI ([d4b1861](https://github.com/Chizukuo/NTE-auto-fish/commit/d4b1861e5c4ccb935c700470f1cd46c39ba35e94))
+
 ## [0.5.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.4.2...v0.5.0) (2026-05-08)
 
 
