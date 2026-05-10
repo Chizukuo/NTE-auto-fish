@@ -69,6 +69,7 @@ The CI builds the GUI EXE with this command (authoritative — match it exactly)
 ```bash
 pyinstaller --noconfirm --onefile --windowed --icon=NONE \
   --add-data "templates;templates" \
+  --add-data "version.txt;." \
   --exclude-module tkinter --exclude-module unittest --exclude-module test \
   --exclude-module email --exclude-module http --exclude-module xml \
   --exclude-module pydoc --exclude-module multiprocessing --exclude-module asyncio \

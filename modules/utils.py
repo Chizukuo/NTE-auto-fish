@@ -23,8 +23,8 @@ APP_DIR = app_dir()
 
 
 def get_version() -> str:
-    """Read version from version.txt in the application directory."""
-    v_path = os.path.join(APP_DIR, "version.txt")
+    """Read version from version.txt bundled with the application."""
+    v_path = bundled_path("version.txt")
     if os.path.exists(v_path):
         try:
             with open(v_path, "r", encoding="utf-8") as f:
