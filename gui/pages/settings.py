@@ -193,7 +193,7 @@ def _create_category_item(key: str, label: str):
             tag=btn_tag,
             width=int(168 * _s),
             height=item_h,
-            callback=lambda s, a, u, k=key: _switch_category(k),
+            callback=lambda s, a, u: _switch_category(key),
         )
         dpg.bind_item_theme(btn_tag, _cat_active_theme if is_active else _cat_inactive_theme)
 
