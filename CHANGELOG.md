@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.6.0...v0.6.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* **build:** embed version.txt in artifacts to resolve 0.0.0 window title ([0904fab](https://github.com/Chizukuo/NTE-auto-fish/commit/0904fab8da946d34921d0390a1112daf6a437c04))
+
 ## [0.6.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.5.0...v0.6.0) (2026-05-10)
 
 
