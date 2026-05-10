@@ -52,8 +52,12 @@ jobs:
     - name: Build GUI (single EXE)
       shell: bash
       run: |
+        VERSION=$(cat version.txt)
+        FILENAME="NTE-Auto-Fish-v${VERSION}-Windows-x64.exe"
+        echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+        
         pyinstaller --noconfirm --onefile --windowed --icon=NONE \
-          --manifest NTE-Auto-Fish.exe.manifest \
+          --uac-admin \
           --add-data "templates;templates" \
           --exclude-module tkinter \
           --exclude-module unittest \
@@ -71,29 +75,36 @@ jobs:
           --exclude-module _decimal \
           --exclude-module _lzma \
           --exclude-module _bz2 \
-          --name NTE-Auto-Fish \
+          --name "NTE-Auto-Fish" \
           start_gui.py
+        
+        mv "dist/NTE-Auto-Fish.exe" "dist/$FILENAME"
 
     - name: Package CLI source
       shell: pwsh
       run: |
+        $version = Get-Content version.txt -Raw
+        $version = $version.Trim()
+        $cliFilename = "NTE-Auto-Fish-v$version-CLI.zip"
+        echo "CLI_FILENAME=$cliFilename" >> $env:GITHUB_ENV
+        
         New-Item -ItemType Directory -Force -Path dist/cli-package/modules, dist/cli-package/templates | Out-Null
         Copy-Item main.py, config.py, requirements.txt, run.bat dist/cli-package/
         Copy-Item modules/* dist/cli-package/modules/
         Copy-Item templates/* dist/cli-package/templates/
-        Compress-Archive -Path dist/cli-package/* -DestinationPath dist/NTE-Auto-Fish-CLI.zip
+        Compress-Archive -Path dist/cli-package/* -DestinationPath "dist/$cliFilename"
 
     - name: Upload GUI Artifact
       uses: actions/upload-artifact@v4
       with:
         name: NTE-Auto-Fish-GUI-Windows
-        path: dist/NTE-Auto-Fish.exe
+        path: dist/${{ env.FILENAME }}
 
     - name: Upload CLI Artifact
       uses: actions/upload-artifact@v4
       with:
         name: NTE-Auto-Fish-CLI-Windows
-        path: dist/NTE-Auto-Fish-CLI.zip
+        path: dist/${{ env.CLI_FILENAME }}
 
     - name: Upload Release Artifacts
       if: needs.release-please.outputs.release_created == 'true'
@@ -101,5 +112,5 @@ jobs:
       with:
         tag_name: ${{ needs.release-please.outputs.tag_name }}
         files: |
-          dist/NTE-Auto-Fish.exe
-          dist/NTE-Auto-Fish-CLI.zip
+          dist/${{ env.FILENAME }}
+          dist/${{ env.CLI_FILENAME }}

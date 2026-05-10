@@ -42,12 +42,12 @@
 
 ### 方式一：使用预构建程序（GUI）
 
-1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 下载最新的 `NTE-Auto-Fish.exe`。
+1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 下载最新的 `NTE-Auto-Fish-v*.*.*-Windows-x64.exe`。
 2. 以管理员身份运行，确保模拟输入可以进入游戏。
 
 ### 方式二：CLI 包
 
-1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 下载 `NTE-Auto-Fish-CLI.zip` 并解压。
+1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 下载 `NTE-Auto-Fish-v*.*.*-CLI.zip` 并解压。
 2. 双击 `run.bat`，程序会自动检测 Python 并在首次运行时安装缺失的依赖。
 3. 更多用法请在终端运行 `python main.py --help`。可用命令：`start`、`calibrate`、`config show/set`、`reset`。
 

@@ -42,12 +42,12 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 
 ### 方法 1：ビルド済み実行ファイル（GUI）
 
-1. [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) から最新の `NTE-Auto-Fish.exe` をダウンロードします。
+1. [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) から最新の `NTE-Auto-Fish-v*.*.*-Windows-x64.exe` をダウンロードします。
 2. ゲームへ入力を届けるため、管理者権限で実行します。
 
 ### 方法 2：CLI パッケージ
 
-1. [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) から `NTE-Auto-Fish-CLI.zip` をダウンロードして展開します。
+1. [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) から `NTE-Auto-Fish-v*.*.*-CLI.zip` をダウンロードして展開します。
 2. `run.bat` をダブルクリックすると、Python の確認と初回実行時の依存パッケージ自動インストールが行われます。
 3. 詳細はターミナルで `python main.py --help` を実行してください。利用可能なコマンド：`start`、`calibrate`、`config show/set`、`reset`。
 

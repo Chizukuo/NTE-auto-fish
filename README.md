@@ -42,12 +42,12 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 
 ### Option 1: Prebuilt Executable (GUI)
 
-1. Download the latest `NTE-Auto-Fish.exe` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases).
+1. Download the latest `NTE-Auto-Fish-v*.*.*-Windows-x64.exe` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases).
 2. Run it as Administrator so simulated input can reach the game.
 
 ### Option 2: CLI Package
 
-1. Download `NTE-Auto-Fish-CLI.zip` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) and extract it.
+1. Download `NTE-Auto-Fish-v*.*.*-CLI.zip` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) and extract it.
 2. Double-click `run.bat` — it checks for Python, then auto-installs missing dependencies on first run.
 3. For more options, run `python main.py --help` in a terminal. Available commands: `start`, `calibrate`, `config show/set`, `reset`.
 

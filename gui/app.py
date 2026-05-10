@@ -15,6 +15,7 @@ from gui.pages.settings import create_settings
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import _FONT_PATH, FONT_SIZES, build_global_theme, set_ui_scale
 from main import NTEFishingBot
+from modules.utils import VERSION
 from screeninfo import get_monitors
 
 
@@ -25,7 +26,7 @@ def _get_primary_monitor_size() -> tuple[int, int]:
     h = user32.GetSystemMetrics(1)
     return w, h
 
-APP_TITLE = "NTE Auto-Fish"
+APP_TITLE = f"NTE Auto-Fish v{VERSION}"
 
 
 class FishingGUI:

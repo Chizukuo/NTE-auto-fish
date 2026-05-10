@@ -20,3 +20,18 @@ def bundled_path(*parts: str) -> str:
 
 
 APP_DIR = app_dir()
+
+
+def get_version() -> str:
+    """Read version from version.txt in the application directory."""
+    v_path = os.path.join(APP_DIR, "version.txt")
+    if os.path.exists(v_path):
+        try:
+            with open(v_path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    return "0.0.0"
+
+
+VERSION = get_version()
