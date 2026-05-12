@@ -100,7 +100,7 @@ class NTEFishingBot:
         self._screen_h = 0
         self._mon_x = 0
         self._mon_y = 0
-        self._scaled_min_area = 50.0
+        self._scaled_min_area = 40.0
         self._scaled_blue_pixels = 300
         self._scaled_error_white_min = 1200
 
@@ -260,7 +260,7 @@ class NTEFishingBot:
         
         # Scale area and pixel thresholds quadratically with resolution
         scale_sq = scale * scale
-        self._scaled_min_area = max(50.0 * scale_sq, 1.0)
+        self._scaled_min_area = max(40.0 * scale_sq, 1.0)
         self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 1.0))
         self._scaled_error_white_min = int(max(1200 * scale_sq, 10.0))
         
