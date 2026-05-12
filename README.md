@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/icons/readme_icon.png" alt="Logo" width="300"/>
+
 # NTE Auto-Fishing
 
 [English](README.md) | [简体中文](docs/README_zh.md) | [日本語](docs/README_ja.md)

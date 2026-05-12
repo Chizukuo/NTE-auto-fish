@@ -67,7 +67,7 @@ This is the command CI runs. Tests cover vision pipeline outcomes using screensh
 The CI builds the GUI EXE with this command (authoritative — match it exactly):
 
 ```bash
-pyinstaller --noconfirm --onefile --windowed --icon=NONE \
+pyinstaller --noconfirm --onefile --windowed --icon="assets/icons/app.ico" \
   --add-data "templates;templates" \
   --add-data "version.txt;." \
   --exclude-module tkinter --exclude-module unittest --exclude-module test \

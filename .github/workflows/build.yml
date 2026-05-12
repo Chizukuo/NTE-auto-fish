@@ -56,7 +56,7 @@ jobs:
         FILENAME="NTE-Auto-Fish-v${VERSION}-Windows-x64.exe"
         echo "FILENAME=$FILENAME" >> $GITHUB_ENV
         
-        pyinstaller --noconfirm --onefile --windowed --icon=NONE \
+        pyinstaller --noconfirm --onefile --windowed --icon="assets/icons/app.ico" \
           --uac-admin \
           --add-data "templates;templates" \
           --add-data "version.txt;." \
