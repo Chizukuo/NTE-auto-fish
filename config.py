@@ -101,6 +101,12 @@ class HumanizationConfig:
     pid_noise_amplitude: float = 3.0  # pixels
     pid_noise_dist: str = "gaussian"  # "uniform" / "gaussian"
 
+    # Adaptive humanization (Intensity-based focus)
+    adaptive_enabled: bool = True
+    adaptive_latency_min_scale: float = 0.3
+    adaptive_pulse_gap_min_scale: float = 0.2
+    adaptive_pulse_hold_max_scale: float = 1.5
+
     # Timing jitter spreads (+/- on base values)
     cast_hold_jitter: float = 0.015
     cast_animation_jitter: float = 0.20

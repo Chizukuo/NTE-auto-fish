@@ -114,6 +114,7 @@ class NTEFishingBot:
         self._is_stopped = True
         self._fps = 0.0
         self._last_time = time.time()
+        self._last_action = "NONE"
 
         self._log("Bot initialized.")
 
@@ -139,6 +140,7 @@ class NTEFishingBot:
         self._fps = 0.0
         self._session_start = time.time()
         self._last_time = time.time()
+        self._last_action = "NONE"
 
     def request_stop(self) -> None:
         self._stop_flag = True
@@ -567,31 +569,51 @@ class NTEFishingBot:
             bar_half = self._roi_bar.get("width", 400) / 2
             output = self.pid.update(float(cursor_x), float(target_x), bar_half_width=bar_half)
             self._last_pid_out = output
-
             hcfg = self.cfg.humanization
             deadband = self.cfg.pid.deadband
+            bar_width = self._roi_bar.get("width", 400)
+            intensity = min(1.0, abs(error) / max(bar_width / 2, 1.0))
 
             if hcfg.enabled:
                 # PID noise overlay
                 if hcfg.pid_noise_enabled:
                     output += sample_noise(hcfg.pid_noise_amplitude, hcfg.pid_noise_dist)
 
+                # Adaptive humanization: reduce latency and gaps when error is high
+                # Humans focus more and react faster when the target is far away.
+                if hcfg.adaptive_enabled:
+                    latency_factor = max(hcfg.adaptive_latency_min_scale, 1.0 - intensity * (1.0 - hcfg.adaptive_latency_min_scale))
+                    gap_factor = max(hcfg.adaptive_pulse_gap_min_scale, 1.0 - intensity * (1.0 - hcfg.adaptive_pulse_gap_min_scale))
+                    hold_factor = 1.0 + intensity * (hcfg.adaptive_pulse_hold_max_scale - 1.0)
+                else:
+                    latency_factor = 1.0
+                    gap_factor = 1.0
+                    hold_factor = 1.0
+
                 # Reaction latency
                 react_delay = sample_reaction(
-                    hcfg.reaction_latency_min, hcfg.reaction_latency_max, hcfg.reaction_latency_dist,
+                    hcfg.reaction_latency_min * latency_factor,
+                    hcfg.reaction_latency_max * latency_factor,
+                    hcfg.reaction_latency_dist,
                 )
+                
+                # If we are continuing the same action, further reduce latency
+                if (output > deadband and self._last_action == "RIGHT") or \
+                   (output < -deadband and self._last_action == "LEFT"):
+                    react_delay *= 0.5
+
                 if react_delay > 0:
                     self._stop_event.wait(timeout=react_delay)
 
                 if output > deadband:
-                    hold_t = random.uniform(hcfg.pulse_hold_min, hcfg.pulse_hold_max)
-                    gap_t = random.uniform(hcfg.pulse_release_min, hcfg.pulse_release_max)
+                    hold_t = random.uniform(hcfg.pulse_hold_min * hold_factor, hcfg.pulse_hold_max * hold_factor)
+                    gap_t = random.uniform(hcfg.pulse_release_min * gap_factor, hcfg.pulse_release_max * gap_factor)
                     self.input.release(self.cfg.keys.left)
                     self.input.pulse_hold(self.cfg.keys.right, hold_t, gap_t, self._stop_event)
                     action = "RIGHT"
                 elif output < -deadband:
-                    hold_t = random.uniform(hcfg.pulse_hold_min, hcfg.pulse_hold_max)
-                    gap_t = random.uniform(hcfg.pulse_release_min, hcfg.pulse_release_max)
+                    hold_t = random.uniform(hcfg.pulse_hold_min * hold_factor, hcfg.pulse_hold_max * hold_factor)
+                    gap_t = random.uniform(hcfg.pulse_release_min * gap_factor, hcfg.pulse_release_max * gap_factor)
                     self.input.release(self.cfg.keys.right)
                     self.input.pulse_hold(self.cfg.keys.left, hold_t, gap_t, self._stop_event)
                     action = "LEFT"
@@ -615,6 +637,9 @@ class NTEFishingBot:
                 else:
                     self.input.release(self.cfg.keys.left)
                     self.input.release(self.cfg.keys.right)
+                    action = "NONE"
+            
+            self._last_action = action
         else:
             self.input.release(self.cfg.keys.left)
             self.input.release(self.cfg.keys.right)

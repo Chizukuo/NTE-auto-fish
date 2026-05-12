@@ -70,6 +70,10 @@ _TOOLTIPS = {
     "Noise dist": "Noise distribution: uniform (flat) or gaussian (bell curve).",
     "Cast jitter": "Random variation on cast timing (+/- seconds).",
     "Result jitter": "Random variation on result wait (+/- seconds).",
+    "Adaptive focus": "Speed up response and shorten pulse gaps when the fish is far away.",
+    "Latency focus min": "Minimum latency multiplier when fish is at max distance (e.g. 0.3 = 70% reduction).",
+    "Pulse gap focus min": "Minimum gap multiplier when fish is at max distance (e.g. 0.2 = 80% reduction).",
+    "Pulse hold focus max": "Maximum hold multiplier when fish is at max distance (e.g. 1.5 = 50% increase).",
 }
 
 # ---------------------------------------------------------------------------
@@ -545,6 +549,33 @@ def _build_humanization_settings():
             default=CFG.humanization.result_wait_jitter,
             cb=lambda s, d: _set(CFG.humanization, "result_wait_jitter", d),
         )
+        
+        dpg.add_spacer(height=8)
+        dpg.add_text("Adaptive Focus (Dynamic Speedup)", color=TEXT_MUTED)
+        dpg.add_spacer(height=4)
+        _checkbox_with_tooltip(
+            "Adaptive focus", tag="cfg_hum_adaptive_enabled",
+            default=CFG.humanization.adaptive_enabled,
+            cb=lambda s, d: _set(CFG.humanization, "adaptive_enabled", d),
+        )
+        _slider_with_tooltip(
+            "Latency focus min", tag="cfg_hum_latency_focus_min",
+            min_val=0.1, max_val=1.0, fmt="%.2f",
+            default=CFG.humanization.adaptive_latency_min_scale,
+            cb=lambda s, d: _set(CFG.humanization, "adaptive_latency_min_scale", d),
+        )
+        _slider_with_tooltip(
+            "Pulse gap focus min", tag="cfg_hum_gap_focus_min",
+            min_val=0.1, max_val=1.0, fmt="%.2f",
+            default=CFG.humanization.adaptive_pulse_gap_min_scale,
+            cb=lambda s, d: _set(CFG.humanization, "adaptive_pulse_gap_min_scale", d),
+        )
+        _slider_with_tooltip(
+            "Pulse hold focus max", tag="cfg_hum_hold_focus_max",
+            min_val=1.0, max_val=2.5, fmt="%.2f",
+            default=CFG.humanization.adaptive_pulse_hold_max_scale,
+            cb=lambda s, d: _set(CFG.humanization, "adaptive_pulse_hold_max_scale", d),
+        )
 
 
 def _check_for_updates():
@@ -779,6 +810,10 @@ def _refresh_values():
     dpg.set_value("cfg_hum_noise_dist", CFG.humanization.pid_noise_dist)
     dpg.set_value("cfg_hum_cast_jitter", CFG.humanization.cast_animation_jitter)
     dpg.set_value("cfg_hum_result_jitter", CFG.humanization.result_wait_jitter)
+    dpg.set_value("cfg_hum_adaptive_enabled", CFG.humanization.adaptive_enabled)
+    dpg.set_value("cfg_hum_latency_focus_min", CFG.humanization.adaptive_latency_min_scale)
+    dpg.set_value("cfg_hum_gap_focus_min", CFG.humanization.adaptive_pulse_gap_min_scale)
+    dpg.set_value("cfg_hum_hold_focus_max", CFG.humanization.adaptive_pulse_hold_max_scale)
 
 
 def _on_top_changed(val):
