@@ -101,6 +101,8 @@ class NTEFishingBot:
         self._mon_x = 0
         self._mon_y = 0
         self._scaled_min_area = 50.0
+        self._scaled_blue_pixels = 300
+        self._scaled_error_white_min = 1200
 
         self._last_pid_out = 0.0
         self._cursor_x_rel = None
@@ -255,7 +257,13 @@ class NTEFishingBot:
         self._screen_w, self._screen_h = mon.width, mon.height
         self._mon_x, self._mon_y = mon.x, mon.y
         scale = min(self._screen_w / _DEFAULT_SCREEN_W, self._screen_h / _DEFAULT_SCREEN_H)
-        self._scaled_min_area = max(50.0 * scale * scale, 1.0)
+        
+        # Scale area and pixel thresholds quadratically with resolution
+        scale_sq = scale * scale
+        self._scaled_min_area = max(50.0 * scale_sq, 1.0)
+        self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 1.0))
+        self._scaled_error_white_min = int(max(1200 * scale_sq, 10.0))
+        
         pad = self.cfg.calibration.roi_padding
         self._log(
             f"[Calibration] Screen resolution: {self._screen_w}x{self._screen_h}"
@@ -459,7 +467,7 @@ class NTEFishingBot:
         self._stop_event.wait(timeout=0.3)
         if self._roi_error:
             err_img = self.capture.grab_bgr(self._roi_error)
-            if self.vision.check_error_region(err_img):
+            if self.vision.check_error_region(err_img, white_pixel_min=self._scaled_error_white_min):
                 self._bait_error_count += 1
                 self._log(
                     f"[ERROR] Cast error ({self._bait_error_count}/{self.cfg.timing.bait_error_threshold}), "
@@ -499,7 +507,7 @@ class NTEFishingBot:
         if self.vision.check_blue_trigger(
             btn_img,
             self.cfg.hsv.blue,
-            self.cfg.min_blue_pixels,
+            self._scaled_blue_pixels,
         ):
             self._log("[WAITING] Fish hooked (blue trigger).")
             self._enter_struggling()

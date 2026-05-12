@@ -9,7 +9,7 @@ _ERROR_WHITE_PIXEL_MIN = 1200
 _ERROR_WHITE_RATIO_MIN = 0.02
 _ERROR_WHITE_RATIO_MAX = 0.35
 
-
+_DEFAULT_MIN_AREA = 50.0
 _KERNEL_3x3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
 
@@ -67,7 +67,7 @@ class VisionModule:
         bgr_img: np.ndarray,
         lower: tuple,
         upper: tuple,
-        min_area: float = 50.0,
+        min_area: float = _DEFAULT_MIN_AREA,
         ignore_margin_ratio: float = 0.0,
         last_known_x: float | None = None,
     ):
@@ -133,15 +133,19 @@ class VisionModule:
         return cx, float(total_area)
 
     @staticmethod
-    def check_error_region(bgr_img: np.ndarray) -> bool:
+    def check_error_region(
+        bgr_img: np.ndarray,
+        brightness_threshold: float = _ERROR_BRIGHTNESS_THRESHOLD,
+        white_pixel_min: int = _ERROR_WHITE_PIXEL_MIN,
+    ) -> bool:
         """Return True when the region shows a dark background with white text (error dialog)."""
         gray = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2GRAY)
         mean_brightness = float(np.mean(gray))
-        if mean_brightness > _ERROR_BRIGHTNESS_THRESHOLD:
+        if mean_brightness > brightness_threshold:
             return False
         total_pixels = gray.shape[0] * gray.shape[1]
         white_pixels = int(cv2.countNonZero(cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]))
-        if white_pixels < _ERROR_WHITE_PIXEL_MIN:
+        if white_pixels < white_pixel_min:
             return False
         ratio = white_pixels / max(total_pixels, 1)
         return _ERROR_WHITE_RATIO_MIN <= ratio <= _ERROR_WHITE_RATIO_MAX
