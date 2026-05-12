@@ -1,35 +1,21 @@
 """Settings page — two-column category navigation with config panels."""
 from __future__ import annotations
 
+import json
+import threading
+import urllib.request
+import webbrowser
 from typing import Callable
 
 import dearpygui.dearpygui as dpg
+from screeninfo import get_monitors
 
 from config import CFG
 from gui.bridge import BotBridge
-from gui.components import (
-    apply_glass_card_theme,
-    caption_text,
-    hsv_editor,
-    metric_row,
-    section_header,
-    styled_button,
-    update_hsv_preview,
-)
-from gui.theme import (
-    ACCENT,
-    ACCENT_BLUE,
-    BORDER_SUBTLE,
-    CARD_GAP,
-    GLASS_HIGHLIGHT,
-    GLASS_HIGHLIGHT2,
-    TEXT_MUTED,
-    TEXT_PRIMARY,
-    TEXT_VERY_MUTED,
-    _ui_scale as _s,
-    build_settings_cat_theme,
-)
-from screeninfo import get_monitors
+from gui.components import (apply_glass_card_theme, caption_text, hsv_editor,
+                            section_header, styled_button, update_hsv_preview)
+from gui.theme import (ACCENT, CARD_GAP, TEXT_MUTED, _ui_scale as _s,
+                       build_settings_cat_theme)
 
 # ---------------------------------------------------------------------------
 # Category definitions
@@ -42,6 +28,7 @@ CATEGORIES = [
     ("input",         "Input & Hotkeys"),
     ("calibration",   "Calibration"),
     ("humanization",  "Humanization"),
+    ("system",        "System & Updates"),
 ]
 
 _RESULT_METHODS = {
@@ -144,6 +131,7 @@ def create_settings(
             _build_input_settings(bridge, on_hotkeys_changed)
             _build_calibration_settings()
             _build_humanization_settings()
+            _build_system_settings()
 
             dpg.add_spacer(height=int(20 * _s))
 
@@ -559,6 +547,67 @@ def _build_humanization_settings():
         )
 
 
+def _check_for_updates():
+    dpg.set_value("cfg_system_update_status", "Checking for updates...")
+    dpg.hide_item("cfg_system_update_open")
+
+    def _do_check():
+        try:
+            req = urllib.request.Request(
+                "https://api.github.com/repos/Chizukuo/NTE-auto-fish/releases/latest",
+                headers={"User-Agent": "NTE-auto-fish"}
+            )
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode("utf-8"))
+                latest_tag = data.get("tag_name", "").lstrip("v")
+                html_url = data.get("html_url", "")
+
+                try:
+                    with open("version.txt", "r", encoding="utf-8") as f:
+                        current_ver = f.read().strip().lstrip("v")
+                except Exception:
+                    current_ver = "Unknown"
+
+                if current_ver != "Unknown" and latest_tag:
+                    if current_ver != latest_tag:
+                        msg = f"New version available: v{latest_tag}!"
+                        dpg.set_item_user_data("cfg_system_update_open", html_url)
+                        dpg.show_item("cfg_system_update_open")
+                    else:
+                        msg = f"You are up to date! (v{current_ver})"
+                else:
+                    msg = "Failed to parse versions."
+
+                dpg.set_value("cfg_system_update_status", msg)
+        except Exception as e:
+            dpg.set_value("cfg_system_update_status", f"Check failed: {e}")
+
+    threading.Thread(target=_do_check, daemon=True).start()
+
+
+def _build_system_settings():
+    with dpg.group(tag="settings_group_system"):
+        section_header("System & Updates", color=ACCENT)
+        caption_text("Application updates and system settings.")
+        dpg.add_spacer(height=8)
+
+        with dpg.group(horizontal=True):
+            styled_button(
+                "Check for Updates", "cfg_system_update_btn",
+                callback=lambda: _check_for_updates(),
+                variant="neutral", width=int(140 * _s), height=int(28 * _s),
+            )
+            styled_button(
+                "Download Update", "cfg_system_update_open",
+                callback=lambda s, a, u: webbrowser.open(u) if u else None,
+                variant="primary", width=int(140 * _s), height=int(28 * _s),
+                user_data="", show=False
+            )
+
+        dpg.add_spacer(height=4)
+        dpg.add_text("", tag="cfg_system_update_status", color=TEXT_MUTED)
+
+
 # ---------------------------------------------------------------------------
 # Helper widgets
 # ---------------------------------------------------------------------------
@@ -755,11 +804,13 @@ def _set_key(attr: str, val: str, tag: str):
     else:
         dpg.set_value(tag, getattr(CFG.keys, attr))
 
+
 def _set_monitor(selected: str, monitors: list[str]):
     try:
         CFG.monitor_index = monitors.index(selected)
     except ValueError:
         CFG.monitor_index = 0
+
 
 def _set_hotkey(
     attr: str,

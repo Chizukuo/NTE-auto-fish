@@ -59,10 +59,11 @@ def styled_button(
     variant: str = "neutral",
     width: int = 90,
     height: int = 34,
+    **kwargs,
 ):
     """Create a button with the appropriate variant theme."""
     dpg.add_button(
-        label=label, tag=tag, width=width, height=height, callback=callback,
+        label=label, tag=tag, width=width, height=height, callback=callback, **kwargs
     )
     dpg.bind_item_theme(tag, _get_button_theme(variant))
 
