@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.6.1...v0.7.0) (2026-05-12)
+
+
+### Features
+
+* add application and documentation icons ([abe4c81](https://github.com/Chizukuo/NTE-auto-fish/commit/abe4c8130db63f086189fd2f7657ff6c8e08fb2d))
+* **gui:** add system settings panel with update checker ([1171d6b](https://github.com/Chizukuo/NTE-auto-fish/commit/1171d6bbc1f16983250a921ee45e0126f005193e))
+* implement adaptive humanization for improved tracking responsiveness ([75abdc7](https://github.com/Chizukuo/NTE-auto-fish/commit/75abdc7174b57a88d0245bbb4b71dffa2bf20b1f))
+* **vision:** add adaptive resolution scaling for vision thresholds ([7a6e9b1](https://github.com/Chizukuo/NTE-auto-fish/commit/7a6e9b140f89322029ce66950b6ac71a7c538f9b))
+
+
+### Bug Fixes
+
+* **gui:** resolve settings slider occlusion and add unit suffixes ([f1afa29](https://github.com/Chizukuo/NTE-auto-fish/commit/f1afa2916800d0cbaf9c8b23840c4284f19b87ac))
+* **vision:** lower minimum area threshold for HSV detection to support 1080p ([2f467d4](https://github.com/Chizukuo/NTE-auto-fish/commit/2f467d46250f9f53f1a6ba15efb712e821e8b726))
+
 ## [0.6.1](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.6.0...v0.6.1) (2026-05-10)
 
 
