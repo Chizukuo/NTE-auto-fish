@@ -594,8 +594,7 @@ def _check_for_updates():
                 html_url = data.get("html_url", "")
 
                 try:
-                    with open("version.txt", "r", encoding="utf-8") as f:
-                        current_ver = f.read().strip().lstrip("v")
+                    current_ver = VERSION.lstrip("v")
                 except Exception:
                     current_ver = "Unknown"
 
