@@ -115,6 +115,7 @@ class NTEFishingBot:
         self._fps = 0.0
         self._last_time = time.time()
         self._last_action = "NONE"
+        self._consecutive_waiting_timeouts = 0
 
         self._log("Bot initialized.")
 
@@ -141,6 +142,7 @@ class NTEFishingBot:
         self._session_start = time.time()
         self._last_time = time.time()
         self._last_action = "NONE"
+        self._consecutive_waiting_timeouts = 0
 
     def request_stop(self) -> None:
         self._stop_flag = True
@@ -447,6 +449,7 @@ class NTEFishingBot:
     def _enter_struggling(self) -> None:
         """Common setup when transitioning into STRUGGLING from any state."""
         self._bait_error_count = 0
+        self._consecutive_waiting_timeouts = 0
         hook_dur = self.cfg.timing.key_press_duration
         if self.cfg.humanization.enabled:
             hook_dur = cfg_jitter(hook_dur, self.cfg.humanization.cast_hold_jitter, minimum=0.02)
@@ -501,7 +504,18 @@ class NTEFishingBot:
 
     def _handle_waiting(self) -> None:
         if self.sm.time_in_state > self.cfg.timing.bite_timeout_secs:
-            self._log("[WAITING] Timeout, recasting.", logging.WARNING)
+            self._consecutive_waiting_timeouts += 1
+            if self._consecutive_waiting_timeouts >= 2:
+                self._log(
+                    f"[WAITING] Consecutive timeout ({self._consecutive_waiting_timeouts}), "
+                    "checking if stuck in result screen...",
+                    logging.WARNING,
+                )
+                self._dismiss_result()
+                self._consecutive_waiting_timeouts = 0
+            else:
+                self._log("[WAITING] Timeout, recasting.", logging.WARNING)
+
             self.sm.transition(FishingState.IDLE)
             return
 
@@ -758,6 +772,14 @@ class NTEFishingBot:
 
         self._fish_count += 1
         self._log(f"[RESULT] Fish #{self._fish_count}.")
+        self._dismiss_result()
+        self.sm.transition(FishingState.IDLE)
+
+    def _dismiss_result(self) -> None:
+        """Dismiss the result screen by clicking or pressing the exit key."""
+        if self._stop_flag:
+            return
+
         if self.cfg.result_close_method == "click":
             cx = self._mon_x + (self._screen_w // 2 if self._screen_w else _RESULT_CLOSE_FALLBACK_X)
             cy = self._mon_y + (self._screen_h // 2 if self._screen_h else _RESULT_CLOSE_FALLBACK_Y)
@@ -767,13 +789,11 @@ class NTEFishingBot:
             if self.cfg.humanization.enabled:
                 exit_dur = cfg_jitter(exit_dur, self.cfg.humanization.cast_hold_jitter, minimum=0.02)
             self.input.press(self.cfg.keys.exit, exit_dur)
+
         close_delay = 0.5
         if self.cfg.humanization.enabled:
             close_delay = cfg_jitter(close_delay, self.cfg.humanization.post_close_jitter, minimum=0.2)
         self._stop_event.wait(timeout=close_delay)
-        if self._stop_flag:
-            return
-        self.sm.transition(FishingState.IDLE)
 
 
 def _set_dpi_awareness() -> None:
