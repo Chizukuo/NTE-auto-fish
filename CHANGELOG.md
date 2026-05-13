@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.7.0...v0.7.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* **bot:** add fallback to dismiss result screen on consecutive wait timeouts ([d386728](https://github.com/Chizukuo/NTE-auto-fish/commit/d386728c1d2fcb7f10730248848012fdfa056415)), closes [#20](https://github.com/Chizukuo/NTE-auto-fish/issues/20)
+* **gui:** use bundled VERSION for update checking ([3ca459d](https://github.com/Chizukuo/NTE-auto-fish/commit/3ca459d76cc60c95449a8f3d9ec05a2ef940c570))
+
 ## [0.7.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.6.1...v0.7.0) (2026-05-12)
 
 
