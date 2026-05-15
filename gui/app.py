@@ -15,7 +15,7 @@ from gui.pages.settings import create_settings
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import _FONT_PATH, FONT_SIZES, build_global_theme, set_ui_scale
 from main import NTEFishingBot
-from modules.utils import VERSION
+from modules.utils import VERSION, bundled_path
 from screeninfo import get_monitors
 
 
@@ -75,6 +75,8 @@ class FishingGUI:
             min_width=int(800 * self._ui_scale),
             min_height=int(560 * self._ui_scale),
             always_on_top=CFG.always_on_top,
+            small_icon=bundled_path("assets", "icons", "app.ico"),
+            large_icon=bundled_path("assets", "icons", "app.ico"),
         )
         dpg.setup_dearpygui()
 
