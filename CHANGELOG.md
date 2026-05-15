@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.2](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.7.1...v0.7.2) (2026-05-15)
+
+
+### Bug Fixes
+
+* **build:** include assets directory in PyInstaller bundle ([1ddaa9e](https://github.com/Chizukuo/NTE-auto-fish/commit/1ddaa9e6edd989650a4260a64a9591350ccf0099))
+* **config:** perform in-place update during settings reset ([5ded579](https://github.com/Chizukuo/NTE-auto-fish/commit/5ded579e9fc90b5825d9a19da8d1f339aea55f62))
+* **gui:** add application icon to the window viewport ([4d83d23](https://github.com/Chizukuo/NTE-auto-fish/commit/4d83d23b4d676fa5d10ed4d1141425431aab0834))
+* **gui:** correct viewport API and add GitHub links ([81757e1](https://github.com/Chizukuo/NTE-auto-fish/commit/81757e1c9c964598d55c6d7922ec762cdb7fa20a))
+
 ## [0.7.1](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.7.0...v0.7.1) (2026-05-13)
 
 
