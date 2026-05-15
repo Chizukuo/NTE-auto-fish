@@ -163,8 +163,17 @@ class AppConfig:
 
     def reset(self, path=None):
         default_cfg = AppConfig()
-        for field_name in self.__dataclass_fields__:
-            setattr(self, field_name, getattr(default_cfg, field_name))
+        
+        def reset_obj(target, source):
+            for field_name in target.__dataclass_fields__:
+                val = getattr(source, field_name)
+                attr = getattr(target, field_name)
+                if hasattr(attr, "__dataclass_fields__"):
+                    reset_obj(attr, val)
+                else:
+                    setattr(target, field_name, val)
+        
+        reset_obj(self, default_cfg)
         self.save(path)
 
     def load(self, path=None):
