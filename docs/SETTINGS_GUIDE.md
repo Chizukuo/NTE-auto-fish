@@ -70,8 +70,17 @@ Introduces randomness and imperfect reactions to make the bot look more like a h
     *   Overlays random noise onto the perfect PID output, making the movement path less mechanical.
 *   **Timing Jitter:** 
     *   Adds random fluctuation to fixed timings like cast animation and result wait.
-*   **Adaptive Focus:**
-    *   Simulates real player behavior: When the fish is far away and about to escape, a player's focus increases and reactions become faster. When enabled, larger errors automatically reduce the bot's latency and increase input frequency to pull the fish back quickly.
+*   **Adaptive Focus (Dynamic Speedup):**
+    *   **High-level:** Simulates real player behavior: When the fish is far away and about to escape, a player's focus increases and reactions become faster. When enabled, larger errors automatically reduce the bot's latency and increase input frequency to pull the fish back quickly.
+    *   **How it works:** The bot calculates an `intensity` factor based on how far the cursor is from the center of the safe zone. The larger the distance, the higher the intensity. This intensity then dynamically scales three key humanization parameters:
+        *   **Reaction Latency:** The time the bot waits before reacting is shortened.
+        *   **Pulse Gap:** The random delay *between* key presses is shortened, leading to more rapid inputs.
+        *   **Pulse Hold:** The duration of each key press is *lengthened*, resulting in stronger, more decisive corrections.
+    *   **Tuning Parameters:**
+        *   **Latency focus min:** The minimum a reaction time can be scaled down to. A value of `0.3` means at maximum intensity, the reaction time will be `30%` of its normal value (i.e., a 70% reduction).
+        *   **Pulse gap focus min:** The minimum a pulse gap can be scaled down to. A value of `0.2` means at maximum intensity, the gap between keys will be `20%` of its normal duration (i.e., an 80% reduction).
+        *   **Pulse hold focus max:** The maximum a key press duration can be scaled up to. A value of `1.5` means at maximum intensity, a key will be held `50%` longer than its normal duration.
+    *   **Tuning Advice:** For most users, the defaults are well-balanced. If you find the bot is still too slow to react to large, sudden movements of the fishing bar, you can slightly decrease the `Latency focus min` or `Pulse gap focus min`. If the bot overcorrects aggressively, consider slightly decreasing the `Pulse hold focus max`.
 
 ## 6. System & Updates
 

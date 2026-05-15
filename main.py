@@ -589,55 +589,103 @@ class NTEFishingBot:
             intensity = min(1.0, abs(error) / max(bar_width / 2, 1.0))
 
             if hcfg.enabled:
+                now = time.perf_counter()
+                
+                # Initialize state variables on first run or transition
+                if not hasattr(self, "_hum_reaction_end"):
+                    self._hum_reaction_end = 0.0
+                    self._hum_pulse_end = 0.0
+                    self._hum_pulse_state = "IDLE"
+                    self._hum_target_action = "NONE"
+
                 # PID noise overlay
                 if hcfg.pid_noise_enabled:
                     output += sample_noise(hcfg.pid_noise_amplitude, hcfg.pid_noise_dist)
 
-                # Adaptive humanization: reduce latency and gaps when error is high
-                # Humans focus more and react faster when the target is far away.
-                if hcfg.adaptive_enabled:
-                    latency_factor = max(hcfg.adaptive_latency_min_scale, 1.0 - intensity * (1.0 - hcfg.adaptive_latency_min_scale))
-                    gap_factor = max(hcfg.adaptive_pulse_gap_min_scale, 1.0 - intensity * (1.0 - hcfg.adaptive_pulse_gap_min_scale))
-                    hold_factor = 1.0 + intensity * (hcfg.adaptive_pulse_hold_max_scale - 1.0)
-                else:
-                    latency_factor = 1.0
-                    gap_factor = 1.0
-                    hold_factor = 1.0
-
-                # Reaction latency
-                react_delay = sample_reaction(
-                    hcfg.reaction_latency_min * latency_factor,
-                    hcfg.reaction_latency_max * latency_factor,
-                    hcfg.reaction_latency_dist,
-                )
-                
-                # If we are continuing the same action, further reduce latency
-                if (output > deadband and self._last_action == "RIGHT") or \
-                   (output < -deadband and self._last_action == "LEFT"):
-                    react_delay *= 0.5
-
-                if react_delay > 0:
-                    self._stop_event.wait(timeout=react_delay)
-
+                # Determine the desired action based on PID output
+                desired_action = "NONE"
                 if output > deadband:
-                    hold_t = random.uniform(hcfg.pulse_hold_min * hold_factor, hcfg.pulse_hold_max * hold_factor)
-                    gap_t = random.uniform(hcfg.pulse_release_min * gap_factor, hcfg.pulse_release_max * gap_factor)
-                    self.input.release(self.cfg.keys.left)
-                    self.input.pulse_hold(self.cfg.keys.right, hold_t, gap_t, self._stop_event)
-                    action = "RIGHT"
+                    desired_action = "RIGHT"
                 elif output < -deadband:
-                    hold_t = random.uniform(hcfg.pulse_hold_min * hold_factor, hcfg.pulse_hold_max * hold_factor)
-                    gap_t = random.uniform(hcfg.pulse_release_min * gap_factor, hcfg.pulse_release_max * gap_factor)
-                    self.input.release(self.cfg.keys.right)
-                    self.input.pulse_hold(self.cfg.keys.left, hold_t, gap_t, self._stop_event)
-                    action = "LEFT"
+                    desired_action = "LEFT"
+
+                # Check if we need to start a new reaction delay
+                if desired_action != self._hum_target_action:
+                    self._hum_target_action = desired_action
+                    
+                    # Adaptive humanization
+                    if hcfg.adaptive_enabled:
+                        latency_factor = max(hcfg.adaptive_latency_min_scale, 1.0 - intensity * (1.0 - hcfg.adaptive_latency_min_scale))
+                    else:
+                        latency_factor = 1.0
+                        
+                    react_delay = sample_reaction(
+                        hcfg.reaction_latency_min * latency_factor,
+                        hcfg.reaction_latency_max * latency_factor,
+                        hcfg.reaction_latency_dist,
+                    )
+                    
+                    # If we are just stopping, or continuing a similar motion, reduce latency
+                    if desired_action == "NONE" or \
+                       (desired_action == "RIGHT" and self._last_action == "RIGHT") or \
+                       (desired_action == "LEFT" and self._last_action == "LEFT"):
+                        react_delay *= 0.3
+                        
+                    self._hum_reaction_end = now + react_delay
+
+                # Determine the *effective* action we should take right now
+                if now < self._hum_reaction_end:
+                    # Still in reaction time, keep doing whatever we were doing (or NONE if we just started)
+                    effective_action = self._last_action
                 else:
+                    effective_action = self._hum_target_action
+
+                # Handle pulsing logic for the effective action
+                if effective_action == "RIGHT" or effective_action == "LEFT":
+                    target_key = self.cfg.keys.right if effective_action == "RIGHT" else self.cfg.keys.left
+                    opposite_key = self.cfg.keys.left if effective_action == "RIGHT" else self.cfg.keys.right
+                    
+                    # Release the opposite key immediately
+                    self.input.release(opposite_key)
+
+                    # Manage pulsing state machine
+                    if self._hum_pulse_state == "IDLE" or now >= self._hum_pulse_end:
+                        if self._hum_pulse_state == "GAP" or self._hum_pulse_state == "IDLE":
+                            # Transition to HOLD
+                            if hcfg.adaptive_enabled:
+                                hold_factor = 1.0 + intensity * (hcfg.adaptive_pulse_hold_max_scale - 1.0)
+                            else:
+                                hold_factor = 1.0
+                            hold_t = random.uniform(hcfg.pulse_hold_min * hold_factor, hcfg.pulse_hold_max * hold_factor)
+                            self._hum_pulse_end = now + hold_t
+                            self._hum_pulse_state = "HOLD"
+                            self.input.hold(target_key)
+                        else:
+                            # Transition to GAP (Release)
+                            if hcfg.adaptive_enabled:
+                                gap_factor = max(hcfg.adaptive_pulse_gap_min_scale, 1.0 - intensity * (1.0 - hcfg.adaptive_pulse_gap_min_scale))
+                            else:
+                                gap_factor = 1.0
+                            gap_t = random.uniform(hcfg.pulse_release_min * gap_factor, hcfg.pulse_release_max * gap_factor)
+                            self._hum_pulse_end = now + gap_t
+                            self._hum_pulse_state = "GAP"
+                            self.input.release(target_key)
+                            
+                    action = effective_action
+                else:
+                    # Effective action is NONE
                     self.input.release(self.cfg.keys.left)
                     self.input.release(self.cfg.keys.right)
+                    self._hum_pulse_state = "IDLE"
+                    
                     if hcfg.deadband_tap_enabled and random.random() < hcfg.deadband_tap_chance:
                         tap_dir = self.cfg.keys.right if error > 0 else self.cfg.keys.left
                         tap_dur = random.uniform(hcfg.deadband_tap_duration_min, hcfg.deadband_tap_duration_max)
-                        self.input.press(tap_dir, tap_dur)
+                        # We use pulse_hold here safely since deadband taps are tiny and rare, 
+                        # but ideally this should also be non-blocking. Let's just use pulse_hold as it's quick.
+                        # Wait, tap_dur is ~0.02s, which is a tiny block, acceptable in deadband.
+                        self.input.pulse_hold(tap_dir, tap_dur, 0.0, self._stop_event)
+                        
                     action = "NONE"
             else:
                 if output > deadband:
