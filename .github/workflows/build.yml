@@ -59,6 +59,7 @@ jobs:
         pyinstaller --noconfirm --onefile --windowed --icon="assets/icons/app.ico" \
           --uac-admin \
           --add-data "templates;templates" \
+          --add-data "assets;assets" \
           --add-data "version.txt;." \
           --exclude-module tkinter \
           --exclude-module unittest \
