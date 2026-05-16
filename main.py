@@ -472,6 +472,7 @@ class NTEFishingBot:
         """Common setup when transitioning into STRUGGLING from any state."""
         self._bait_error_count = 0
         self._consecutive_waiting_timeouts = 0
+        self._bar_detected_in_struggle = False
 
         # Humanized hook reaction latency
         if self.cfg.humanization.enabled:
@@ -599,6 +600,9 @@ class NTEFishingBot:
         output = 0.0
         action = "NONE"
         error = 0.0
+
+        if cursor_x is not None or target_x is not None:
+            self._bar_detected_in_struggle = True
 
         if cursor_x is not None and target_x is not None:
             self.pid.update_params(
@@ -805,7 +809,15 @@ class NTEFishingBot:
                 f"for too long ({self._lost_frames} frames)."
             )
             self.input.release_all()
-            self.sm.transition(FishingState.RESULT)
+            if getattr(self, "_bar_detected_in_struggle", False):
+                self.sm.transition(FishingState.RESULT)
+            else:
+                self._log(
+                    "[STRUGGLING] Never saw bar elements — assuming false hook, recasting.",
+                    logging.WARNING,
+                )
+                self.input.release_all()
+                self.sm.transition(FishingState.IDLE)
 
         poll = self.cfg.timing.struggling_poll_interval
         if self.cfg.humanization.enabled:
