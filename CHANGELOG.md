@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.7.2...v0.8.0) (2026-05-16)
+
+
+### Features
+
+* **humanization:** implement humanized mouse movement and reaction latency ([d2ff4bd](https://github.com/Chizukuo/NTE-auto-fish/commit/d2ff4bd23491e026dce3089d393a4854dbb456d1))
+* **vision:** add configurable detection threshold to fix cursor detection issues ([255145c](https://github.com/Chizukuo/NTE-auto-fish/commit/255145c01324b511968a489492d95b9435b71eb8)), closes [#26](https://github.com/Chizukuo/NTE-auto-fish/issues/26)
+
+
+### Bug Fixes
+
+* **logic:** implement false hook detection to prevent menu opening loop ([0dee473](https://github.com/Chizukuo/NTE-auto-fish/commit/0dee47329477fc4fa57631f2485a05a4f3877da2)), closes [#27](https://github.com/Chizukuo/NTE-auto-fish/issues/27)
+* **vision:** optimize error dialog detection thresholds and fix parameter scaling ([2abd34d](https://github.com/Chizukuo/NTE-auto-fish/commit/2abd34ddd5897f5b4ee198399857400aa27c2665))
+
+
+### Performance Improvements
+
+* optimize vision processing and debug logging I/O ([b6ad126](https://github.com/Chizukuo/NTE-auto-fish/commit/b6ad12670fefb6f015e5425348ab3b4e4a298a47))
+
 ## [0.7.2](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.7.1...v0.7.2) (2026-05-15)
 
 
