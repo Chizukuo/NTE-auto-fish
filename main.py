@@ -787,7 +787,7 @@ class NTEFishingBot:
         # Check for error dialog early — it auto-dismisses in ~2s
         if self._roi_error:
             err_img = self.capture.grab_bgr(self._roi_error)
-            if self.vision.check_error_region(err_img):
+            if self.vision.check_error_region(err_img, white_pixel_min=self._scaled_error_white_min):
                 self._log("[RESULT] Error dialog detected (fish escaped?).")
                 self.sm.transition(FishingState.IDLE)
                 self._push_status()
