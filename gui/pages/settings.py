@@ -76,6 +76,12 @@ _TOOLTIPS = {
     "Pulse gap focus min": "Minimum gap multiplier when fish is at max distance (e.g. 0.2 = 80% reduction).",
     "Pulse hold focus max": "Maximum hold multiplier when fish is at max distance (e.g. 1.5 = 50% increase).",
     "Detection threshold (px)": "Minimum area (pixels) to recognize the cursor or safe zone. This value is shown scaled for your current resolution.",
+    "Move dur min (s)": "Minimum duration for mouse movements.",
+    "Move dur max (s)": "Maximum duration for mouse movements.",
+    "Click jitter X (px)": "Random horizontal offset for result screen clicks.",
+    "Click jitter Y (px)": "Random vertical offset for result screen clicks.",
+    "Hook reaction min": "Minimum reaction delay when a fish bites (seconds).",
+    "Hook reaction max": "Maximum reaction delay when a fish bites (seconds).",
 }
 
 # ---------------------------------------------------------------------------
@@ -565,6 +571,57 @@ def _build_humanization_settings():
             default=CFG.humanization.result_wait_jitter,
             cb=lambda s, d: _set(CFG.humanization, "result_wait_jitter", d),
         )
+
+        dpg.add_spacer(height=8)
+        dpg.add_text("Mouse Trajectory (RESULT Stage)", color=TEXT_MUTED)
+        dpg.add_spacer(height=4)
+        _slider_with_tooltip(
+            "Curve amp (px)", tag="cfg_hum_mouse_amp",
+            min_val=0.0, max_val=300.0, fmt="%.0f",
+            default=CFG.humanization.mouse_move_curve_amplitude,
+            cb=lambda s, d: _set_int(CFG.humanization, "mouse_move_curve_amplitude", d, "cfg_hum_mouse_amp", 0),
+        )
+        with dpg.group(horizontal=True):
+            _slider_with_tooltip(
+                "Move dur min (s)", tag="cfg_hum_mouse_dur_min",
+                min_val=0.05, max_val=0.5, fmt="%.2f",
+                default=CFG.humanization.mouse_move_duration_min,
+                cb=lambda s, d: _set(CFG.humanization, "mouse_move_duration_min", d),
+            )
+            _slider_with_tooltip(
+                "Move dur max (s)", tag="cfg_hum_mouse_dur_max",
+                min_val=0.1, max_val=1.0, fmt="%.2f",
+                default=CFG.humanization.mouse_move_duration_max,
+                cb=lambda s, d: _set(CFG.humanization, "mouse_move_duration_max", d),
+            )
+        with dpg.group(horizontal=True):
+            _input_with_tooltip(
+                "Click jitter X (px)", tag="cfg_hum_mouse_offset_x", width=120,
+                default=CFG.humanization.mouse_offset_x,
+                cb=lambda s, d: _set_int(CFG.humanization, "mouse_offset_x", d, "cfg_hum_mouse_offset_x", 0),
+            )
+            _input_with_tooltip(
+                "Click jitter Y (px)", tag="cfg_hum_mouse_offset_y", width=120,
+                default=CFG.humanization.mouse_offset_y,
+                cb=lambda s, d: _set_int(CFG.humanization, "mouse_offset_y", d, "cfg_hum_mouse_offset_y", 0),
+            )
+
+        dpg.add_spacer(height=8)
+        dpg.add_text("Hook Reaction (WAITING Stage)", color=TEXT_MUTED)
+        dpg.add_spacer(height=4)
+        with dpg.group(horizontal=True):
+            _slider_with_tooltip(
+                "Hook reaction min", tag="cfg_hum_hook_min",
+                min_val=0.0, max_val=0.5, fmt="%.2f",
+                default=CFG.humanization.hook_reaction_min,
+                cb=lambda s, d: _set(CFG.humanization, "hook_reaction_min", d),
+            )
+            _slider_with_tooltip(
+                "Hook reaction max", tag="cfg_hum_hook_max",
+                min_val=0.05, max_val=1.0, fmt="%.2f",
+                default=CFG.humanization.hook_reaction_max,
+                cb=lambda s, d: _set(CFG.humanization, "hook_reaction_max", d),
+            )
         
         dpg.add_spacer(height=8)
         dpg.add_text("Adaptive Focus (Dynamic Speedup)", color=TEXT_MUTED)
@@ -852,6 +909,14 @@ def update_settings_ui(bridge: BotBridge):
     dpg.set_value("cfg_hum_latency_focus_min", CFG.humanization.adaptive_latency_min_scale)
     dpg.set_value("cfg_hum_gap_focus_min", CFG.humanization.adaptive_pulse_gap_min_scale)
     dpg.set_value("cfg_hum_hold_focus_max", CFG.humanization.adaptive_pulse_hold_max_scale)
+
+    dpg.set_value("cfg_hum_mouse_amp", CFG.humanization.mouse_move_curve_amplitude)
+    dpg.set_value("cfg_hum_mouse_dur_min", CFG.humanization.mouse_move_duration_min)
+    dpg.set_value("cfg_hum_mouse_dur_max", CFG.humanization.mouse_move_duration_max)
+    dpg.set_value("cfg_hum_mouse_offset_x", CFG.humanization.mouse_offset_x)
+    dpg.set_value("cfg_hum_mouse_offset_y", CFG.humanization.mouse_offset_y)
+    dpg.set_value("cfg_hum_hook_min", CFG.humanization.hook_reaction_min)
+    dpg.set_value("cfg_hum_hook_max", CFG.humanization.hook_reaction_max)
 
 
 def _set_scaled_min_area(val, bridge: BotBridge):

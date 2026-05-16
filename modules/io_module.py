@@ -4,6 +4,7 @@ Screen capture and input helpers.
 CaptureModule uses mss to grab BGR frames from screen regions. InputModule
 wraps pydirectinput and tracks held keys so state changes can release them.
 """
+import random
 import threading
 import time
 from typing import Optional
@@ -125,3 +126,22 @@ class InputModule:
     def click(self, x: int, y: int) -> None:
         """Click a screen coordinate."""
         pydirectinput.click(x, y)
+
+    def humanized_move(self, x: int, y: int, amp: int = 150, d_min: float = 0.15, d_max: float = 0.3) -> None:
+        """Move the mouse to (x,y) with a human-like trajectory."""
+        try:
+            curr_x, curr_y = pydirectinput.position()
+            mid_x = int((curr_x + x) / 2) + random.randint(-amp, amp)
+            mid_y = int((curr_y + y) / 2) + random.randint(-amp, amp)
+            dur1 = random.uniform(d_min, d_max)
+            dur2 = random.uniform(d_min, d_max)
+            pydirectinput.moveTo(mid_x, mid_y, duration=dur1)
+            pydirectinput.moveTo(x, y, duration=dur2)
+        except Exception:
+            pydirectinput.moveTo(x, y, duration=random.uniform(d_min * 2, d_max * 2))
+
+    def humanized_click(self, x: int, y: int, amp: int = 150, d_min: float = 0.15, d_max: float = 0.3) -> None:
+        """Move the mouse to (x,y) with a human-like trajectory and click."""
+        self.humanized_move(x, y, amp, d_min, d_max)
+        time.sleep(random.uniform(0.05, 0.15))
+        pydirectinput.click()

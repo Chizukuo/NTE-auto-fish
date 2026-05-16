@@ -114,6 +114,17 @@ class HumanizationConfig:
     post_close_jitter: float = 0.12
     error_dialog_jitter: float = 0.40
 
+    # Mouse Trajectory (RESULT stage)
+    mouse_move_curve_amplitude: int = 150
+    mouse_move_duration_min: float = 0.15
+    mouse_move_duration_max: float = 0.30
+    mouse_offset_x: int = 150
+    mouse_offset_y: int = 50
+    
+    # Hook Reaction Latency (WAITING stage)
+    hook_reaction_min: float = 0.1
+    hook_reaction_max: float = 0.25
+
 
 @dataclass
 class CalibrationConfig:

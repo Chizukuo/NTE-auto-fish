@@ -461,6 +461,15 @@ class NTEFishingBot:
         """Common setup when transitioning into STRUGGLING from any state."""
         self._bait_error_count = 0
         self._consecutive_waiting_timeouts = 0
+
+        # Humanized hook reaction latency
+        if self.cfg.humanization.enabled:
+            react = random.uniform(
+                self.cfg.humanization.hook_reaction_min,
+                self.cfg.humanization.hook_reaction_max
+            )
+            if react > 0:
+                self._stop_event.wait(timeout=react)
         hook_dur = self.cfg.timing.key_press_duration
         if self.cfg.humanization.enabled:
             hook_dur = cfg_jitter(hook_dur, self.cfg.humanization.cast_hold_jitter, minimum=0.02)
@@ -840,9 +849,24 @@ class NTEFishingBot:
             return
 
         if self.cfg.result_close_method == "click":
-            cx = self._mon_x + (self._screen_w // 2 if self._screen_w else _RESULT_CLOSE_FALLBACK_X)
-            cy = self._mon_y + (self._screen_h // 2 if self._screen_h else _RESULT_CLOSE_FALLBACK_Y)
-            self.input.click(cx, cy)
+            base_x = self._screen_w // 2 if self._screen_w else _RESULT_CLOSE_FALLBACK_X
+            # Typically click towards the lower middle (e.g. around 75% height)
+            base_y = int(self._screen_h * 0.75) if self._screen_h else int(_RESULT_CLOSE_FALLBACK_Y * 1.5)
+            
+            if self.cfg.humanization.enabled:
+                hcfg = self.cfg.humanization
+                cx = self._mon_x + base_x + random.randint(-hcfg.mouse_offset_x, hcfg.mouse_offset_x)
+                cy = self._mon_y + base_y + random.randint(-hcfg.mouse_offset_y, hcfg.mouse_offset_y)
+                self.input.humanized_click(
+                    cx, cy,
+                    amp=hcfg.mouse_move_curve_amplitude,
+                    d_min=hcfg.mouse_move_duration_min,
+                    d_max=hcfg.mouse_move_duration_max
+                )
+            else:
+                cx = self._mon_x + base_x
+                cy = self._mon_y + base_y
+                self.input.click(cx, cy)
         else:
             exit_dur = self.cfg.timing.key_press_duration
             if self.cfg.humanization.enabled:
@@ -1017,6 +1041,25 @@ def _interactive_edit_config() -> None:
             ("timing.lost_frames_threshold", "Lost frames threshold"),
             ("timing.result_wait_secs", "Result wait (s)"),
             ("timing.key_press_duration", "Key press duration (s)"),
+        ]),
+        ("Humanization", [
+            ("humanization.enabled", "Enabled (true/false)"),
+            ("humanization.mouse_move_curve_amplitude", "Mouse curve amplitude (px)"),
+            ("humanization.mouse_move_duration_min", "Mouse move duration min (s)"),
+            ("humanization.mouse_move_duration_max", "Mouse move duration max (s)"),
+            ("humanization.mouse_offset_x", "Mouse click offset X (px)"),
+            ("humanization.mouse_offset_y", "Mouse click offset Y (px)"),
+            ("humanization.hook_reaction_min", "Hook reaction delay min (s)"),
+            ("humanization.hook_reaction_max", "Hook reaction delay max (s)"),
+            ("humanization.pulse_hold_min", "Pulse hold min (s)"),
+            ("humanization.pulse_hold_max", "Pulse hold max (s)"),
+            ("humanization.pulse_release_min", "Pulse release min (s)"),
+            ("humanization.pulse_release_max", "Pulse release max (s)"),
+            ("humanization.reaction_latency_min", "Struggle reaction min (s)"),
+            ("humanization.reaction_latency_max", "Struggle reaction max (s)"),
+            ("humanization.pid_noise_enabled", "PID noise (true/false)"),
+            ("humanization.pid_noise_amplitude", "PID noise amplitude (px)"),
+            ("humanization.adaptive_enabled", "Adaptive focus (true/false)"),
         ]),
         ("Other", [
             ("min_blue_pixels", "Min blue pixels"),
