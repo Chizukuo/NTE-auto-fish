@@ -131,6 +131,8 @@ class NTEFishingBot:
         self._consecutive_waiting_timeouts = 0
 
         self._log("Bot initialized.")
+        self._csv_handle = None
+        self._csv_writer = None
 
     @property
     def is_stopped(self) -> bool:
@@ -404,12 +406,14 @@ class NTEFishingBot:
                 # --- Priority 1: bar element detection → immediate STRUGGLING ---
                 if state is not FishingState.STRUGGLING and self._roi_bar:
                     bar_img = self.capture.grab_bgr(self._roi_bar)
+                    hsv_img = self.vision.to_hsv(bar_img)
                     cur_x, _ = self.vision.get_hsv_centroid_x(
                         bar_img,
                         self.cfg.hsv.cursor.lower,
                         self.cfg.hsv.cursor.upper,
                         min_area=self._scaled_min_area,
                         ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
+                        hsv_img=hsv_img,
                     )
                     tgt_x, _ = self.vision.get_hsv_centroid_x(
                         bar_img,
@@ -417,6 +421,7 @@ class NTEFishingBot:
                         self.cfg.hsv.safe_zone.upper,
                         min_area=self._scaled_min_area,
                         ignore_margin_ratio=0.0,
+                        hsv_img=hsv_img,
                     )
                     if cur_x is not None or tgt_x is not None:
                         self._log(f"[{state.value}] Bar detected → STRUGGLING.")
@@ -449,6 +454,12 @@ class NTEFishingBot:
                 pass
             try:
                 self.capture.close()
+            except Exception:
+                pass
+            try:
+                if self._csv_handle:
+                    self._csv_handle.close()
+                    self._csv_handle = None
             except Exception:
                 pass
             try:
@@ -561,6 +572,8 @@ class NTEFishingBot:
             return
 
         bar_img = self.capture.grab_bgr(self._roi_bar)
+        hsv_img = self.vision.to_hsv(bar_img)
+        
         cursor_x, _ = self.vision.get_hsv_centroid_x(
             bar_img,
             self.cfg.hsv.cursor.lower,
@@ -568,6 +581,7 @@ class NTEFishingBot:
             min_area=self._scaled_min_area,
             ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
             last_known_x=self._cursor_x_rel,
+            hsv_img=hsv_img,
         )
         target_x, _ = self.vision.get_hsv_centroid_x(
             bar_img,
@@ -576,6 +590,7 @@ class NTEFishingBot:
             min_area=self._scaled_min_area,
             ignore_margin_ratio=0.0,
             last_known_x=self._target_x_rel,
+            hsv_img=hsv_img,
         )
 
         self._cursor_x_rel = cursor_x
@@ -756,19 +771,24 @@ class NTEFishingBot:
             cursor_text = f"{cursor_x}" if cursor_x is not None else "None"
             target_text = f"{target_x}" if target_x is not None else "None"
             try:
-                with open("fishing_data.csv", "a", newline="", encoding="utf-8") as handle:
-                    writer = csv.writer(handle)
-                    writer.writerow(
-                        [
-                            f"{time.time():.3f}",
-                            cursor_text,
-                            target_text,
-                            f"{error:.1f}",
-                            f"{output:.3f}",
-                            action,
-                        ]
-                    )
-            except OSError:
+                if not self._csv_handle:
+                    self._csv_handle = open("fishing_data.csv", "a", newline="", encoding="utf-8")
+                    self._csv_writer = csv.writer(self._csv_handle)
+                
+                self._csv_writer.writerow(
+                    [
+                        f"{time.time():.3f}",
+                        cursor_text,
+                        target_text,
+                        f"{error:.1f}",
+                        f"{output:.3f}",
+                        action,
+                    ]
+                )
+                # Flush occasionally or let OS handle it for performance
+                if random.random() < 0.05:
+                    self._csv_handle.flush()
+            except Exception:
                 pass
 
         if (

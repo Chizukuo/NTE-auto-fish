@@ -63,6 +63,11 @@ class VisionModule:
         return (x1, y1, x2, y2)
 
     @staticmethod
+    def to_hsv(bgr_img: np.ndarray) -> np.ndarray:
+        """Convert a BGR image to HSV color space."""
+        return cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+
+    @staticmethod
     def get_hsv_centroid_x(
         bgr_img: np.ndarray,
         lower: tuple,
@@ -70,9 +75,10 @@ class VisionModule:
         min_area: float = _DEFAULT_MIN_AREA,
         ignore_margin_ratio: float = 0.0,
         last_known_x: float | None = None,
+        hsv_img: np.ndarray | None = None,
     ):
         """Return the horizontal centroid for pixels inside an HSV range."""
-        hsv = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+        hsv = hsv_img if hsv_img is not None else cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(
             hsv,
             np.array(lower, dtype=np.uint8),
@@ -155,9 +161,10 @@ class VisionModule:
         bgr_img: np.ndarray,
         hsv_range: HsvRange | None = None,
         min_pixels: int | None = None,
+        hsv_img: np.ndarray | None = None,
     ) -> bool:
         """Return true when enough bite-trigger pixels are present."""
-        hsv = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+        hsv = hsv_img if hsv_img is not None else cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
         blue = hsv_range or CFG.hsv.blue
         threshold = CFG.min_blue_pixels if min_pixels is None else min_pixels
         lower = np.array(blue.lower, dtype=np.uint8)

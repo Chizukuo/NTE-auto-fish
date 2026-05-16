@@ -94,8 +94,9 @@ class PIDController:
             self._last_sign = current_sign
 
             # Oscillation: 4+ sign changes within 2 seconds
-            recent = [t for t in self._sign_changes if now - t < 2.0]
-            if len(recent) >= 4:
+            # Use a generator expression with sum() to avoid creating a new list
+            recent_count = sum(1 for t in self._sign_changes if now - t < 2.0)
+            if recent_count >= 4:
                 self._adaptive_kp_scale = max(0.4, self._adaptive_kp_scale * 0.95)
                 self._sign_changes.clear()
             else:
