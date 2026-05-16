@@ -148,6 +148,7 @@ class AppConfig:
     keys: KeyConfig = field(default_factory=KeyConfig)
     hotkeys: HotkeyConfig = field(default_factory=HotkeyConfig)
     humanization: HumanizationConfig = field(default_factory=HumanizationConfig)
+    detection_min_area: float = 30.0
     min_blue_pixels: int = 300
     result_close_method: str = "click"
     debug_mode: bool = False

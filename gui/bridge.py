@@ -26,6 +26,8 @@ class BotStatus:
     lost_target_frames: int = 0
     is_running: bool = False
     is_stopped: bool = True
+    scaled_min_area: float = 40.0
+    current_scale: float = 1.0
 
 
 class BotBridge:

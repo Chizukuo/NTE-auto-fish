@@ -189,6 +189,8 @@ def create_dashboard(
                 metric_row("Target lost", "tele_lost_target")
                 metric_row("Button ROI", "tele_button_roi")
                 metric_row("Bar ROI", "tele_bar_roi")
+                metric_row("Threshold", "tele_min_area")
+                metric_row("Scale factor", "tele_scale")
 
             dpg.add_spacer(height=int(CARD_GAP * _s))
 
@@ -232,6 +234,8 @@ def update_dashboard_ui(bridge: BotBridge):
     dpg.set_value("tele_lost_target", str(status.lost_target_frames))
     dpg.set_value("tele_button_roi", _fmt_roi(status.button_roi))
     dpg.set_value("tele_bar_roi", _fmt_roi(status.bar_roi))
+    dpg.set_value("tele_min_area", f"{status.scaled_min_area:.1f} px")
+    dpg.set_value("tele_scale", f"{status.current_scale:.3f}x")
 
     # Button states
     _set_enabled("btn_start_bot", not status.is_running)

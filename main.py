@@ -100,7 +100,8 @@ class NTEFishingBot:
         self._screen_h = 0
         self._mon_x = 0
         self._mon_y = 0
-        self._scaled_min_area = 40.0
+        self._current_scale = 1.0
+        self._scaled_min_area = 30.0
         self._scaled_blue_pixels = 300
         self._scaled_error_white_min = 1200
 
@@ -187,6 +188,8 @@ class NTEFishingBot:
                     and not self._is_stopped
                 ),
                 is_stopped=self._is_stopped,
+                scaled_min_area=self._scaled_min_area,
+                current_scale=self._current_scale,
             )
         )
 
@@ -260,11 +263,11 @@ class NTEFishingBot:
         scene = self.capture.grab_bgr(region)
         self._screen_w, self._screen_h = mon.width, mon.height
         self._mon_x, self._mon_y = mon.x, mon.y
-        scale = min(self._screen_w / _DEFAULT_SCREEN_W, self._screen_h / _DEFAULT_SCREEN_H)
+        self._current_scale = min(self._screen_w / _DEFAULT_SCREEN_W, self._screen_h / _DEFAULT_SCREEN_H)
         
         # Scale area and pixel thresholds quadratically with resolution
-        scale_sq = scale * scale
-        self._scaled_min_area = max(40.0 * scale_sq, 1.0)
+        scale_sq = self._current_scale * self._current_scale
+        self._scaled_min_area = max(self.cfg.detection_min_area * scale_sq, 1.0)
         self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 1.0))
         self._scaled_error_white_min = int(max(1200 * scale_sq, 10.0))
         

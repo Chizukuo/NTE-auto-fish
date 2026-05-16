@@ -11,7 +11,7 @@ from config import CFG
 from gui.bridge import BotBridge
 from gui.pages.dashboard import create_dashboard, update_dashboard_ui
 from gui.pages.logs import create_logs, update_logs_ui
-from gui.pages.settings import create_settings
+from gui.pages.settings import create_settings, update_settings_ui
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import _FONT_PATH, FONT_SIZES, build_global_theme, set_ui_scale
 from main import NTEFishingBot
@@ -285,6 +285,7 @@ class FishingGUI:
             while dpg.is_dearpygui_running():
                 update_dashboard_ui(self.bridge)
                 update_logs_ui(self.bridge)
+                update_settings_ui(self.bridge)
                 dpg.render_dearpygui_frame()
         finally:
             self._shutdown()

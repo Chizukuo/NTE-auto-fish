@@ -74,6 +74,7 @@ _TOOLTIPS = {
     "Latency focus min": "Minimum latency multiplier when fish is at max distance (e.g. 0.3 = 70% reduction).",
     "Pulse gap focus min": "Minimum gap multiplier when fish is at max distance (e.g. 0.2 = 80% reduction).",
     "Pulse hold focus max": "Maximum hold multiplier when fish is at max distance (e.g. 1.5 = 50% increase).",
+    "Detection threshold (px)": "Minimum area (pixels) to recognize the cursor or safe zone. This value is shown scaled for your current resolution.",
 }
 
 # ---------------------------------------------------------------------------
@@ -106,6 +107,8 @@ def create_settings(
     on_hotkeys_changed: Callable[[], None] | None = None,
 ):
     _ensure_themes()
+    # Initial refresh
+    # dpg.set_frame_callback(lambda: _refresh_values(bridge))
 
     with dpg.group(horizontal=True):
         # ── Left column: category list ──────────────────────────────────
@@ -130,7 +133,7 @@ def create_settings(
             apply_glass_card_theme("settings_content")
 
             _build_pid_settings()
-            _build_vision_settings()
+            _build_vision_settings(bridge)
             _build_timing_settings()
             _build_input_settings(bridge, on_hotkeys_changed)
             _build_calibration_settings()
@@ -254,11 +257,23 @@ def _build_pid_settings():
         )
 
 
-def _build_vision_settings():
+def _build_vision_settings(bridge: BotBridge):
     with dpg.group(tag="settings_group_vision"):
         section_header("Vision & Detection", color=ACCENT)
-        caption_text("HSV color ranges for detecting game elements on screen.")
+        caption_text("HSV color ranges and detection sensitivity for game elements.")
         dpg.add_spacer(height=8)
+ 
+        status = bridge.latest_status()
+        scale_sq = status.current_scale * status.current_scale
+        current_val = CFG.detection_min_area * scale_sq
+
+        _slider_with_tooltip(
+            "Detection threshold (px)", tag="cfg_vision_min_area",
+            min_val=1.0, max_val=100.0, fmt="%.1f",
+            default=current_val,
+            cb=lambda s, d: _set_scaled_min_area(d, bridge),
+        )
+        dpg.add_spacer(height=4)
 
         hsv_editor("cfg_hsv_sz", CFG.hsv.safe_zone, label="Safe Zone HSV", default_open=True)
         hsv_editor("cfg_hsv_cur", CFG.hsv.cursor, label="Cursor HSV", default_open=True)
@@ -752,13 +767,21 @@ def _on_reset(
     on_hotkeys_changed: Callable[[], None] | None = None,
 ):
     CFG.reset()
-    _refresh_values()
+    _refresh_values(bridge)
     if on_hotkeys_changed:
         on_hotkeys_changed()
     bridge.push_log("Settings reset to defaults.")
 
 
-def _refresh_values():
+def update_settings_ui(bridge: BotBridge):
+    if not dpg.does_item_exist("page_settings") or not dpg.is_item_shown("page_settings"):
+        return
+    
+    status = bridge.latest_status()
+    scale_sq = status.current_scale * status.current_scale
+    if dpg.does_item_exist("cfg_vision_min_area"):
+        dpg.set_value("cfg_vision_min_area", CFG.detection_min_area * scale_sq)
+
     dpg.set_value("cfg_pid_kp", CFG.pid.kp)
     dpg.set_value("cfg_pid_ki", CFG.pid.ki)
     dpg.set_value("cfg_pid_kd", CFG.pid.kd)
@@ -828,6 +851,15 @@ def _refresh_values():
     dpg.set_value("cfg_hum_latency_focus_min", CFG.humanization.adaptive_latency_min_scale)
     dpg.set_value("cfg_hum_gap_focus_min", CFG.humanization.adaptive_pulse_gap_min_scale)
     dpg.set_value("cfg_hum_hold_focus_max", CFG.humanization.adaptive_pulse_hold_max_scale)
+
+
+def _set_scaled_min_area(val, bridge: BotBridge):
+    status = bridge.latest_status()
+    scale_sq = status.current_scale * status.current_scale
+    if scale_sq > 0:
+        CFG.detection_min_area = val / scale_sq
+    else:
+        CFG.detection_min_area = val
 
 
 def _on_top_changed(val):
