@@ -278,15 +278,25 @@ class FishingGUI:
     # ── Main loop ───────────────────────────────────────────────────────
 
     def run(self):
+        import time
+        target_fps = 60
+        frame_time = 1.0 / target_fps
         try:
             dpg.show_viewport()
             self._position_viewport_away_from_roi()
             self._start_bot()
             while dpg.is_dearpygui_running():
+                start_t = time.perf_counter()
+                
                 update_dashboard_ui(self.bridge)
                 update_logs_ui(self.bridge)
                 update_settings_ui(self.bridge)
                 dpg.render_dearpygui_frame()
+                
+                elapsed = time.perf_counter() - start_t
+                sleep_time = frame_time - elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
         finally:
             self._shutdown()
             dpg.destroy_context()

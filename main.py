@@ -272,7 +272,13 @@ class NTEFishingBot:
             "height": mon.height,
         }
 
-        scene = self.capture.grab_bgr(region)
+        try:
+            scene = self.capture.grab_bgr(region)
+        except Exception as e:
+            self._log(f"[Calibration] Failed to capture screen: {e}. Is the game fullscreen and minimized?", logging.ERROR)
+            self.request_stop()
+            return
+
         self._screen_w, self._screen_h = mon.width, mon.height
         self._mon_x, self._mon_y = mon.x, mon.y
         self._current_scale = min(self._screen_w / _DEFAULT_SCREEN_W, self._screen_h / _DEFAULT_SCREEN_H)
