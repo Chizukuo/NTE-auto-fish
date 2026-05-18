@@ -1,4 +1,5 @@
 """Shared utilities for NTE Auto-Fish."""
+import logging
 import os
 import sys
 
@@ -20,6 +21,7 @@ def bundled_path(*parts: str) -> str:
 
 
 APP_DIR = app_dir()
+log = logging.getLogger("NTEFish")
 
 
 def get_version() -> str:
@@ -29,8 +31,8 @@ def get_version() -> str:
         try:
             with open(v_path, "r", encoding="utf-8") as f:
                 return f.read().strip()
-        except Exception:
-            pass
+        except OSError:
+            log.debug("Failed to read version file: %s", v_path, exc_info=True)
     return "0.0.0"
 
 

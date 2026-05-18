@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import queue
 import threading
 import urllib.request
 import webbrowser
@@ -11,12 +13,13 @@ import dearpygui.dearpygui as dpg
 from screeninfo import get_monitors
 
 from config import CFG
-from main import log
 from gui.bridge import BotBridge
 from gui.components import (apply_glass_card_theme, caption_text, hsv_editor,
                             section_header, styled_button, update_hsv_preview)
 from gui.theme import (ACCENT, CARD_GAP, TEXT_MUTED, _ui_scale as _s,
                        build_settings_cat_theme)
+
+log = logging.getLogger("NTEFish")
 
 # ---------------------------------------------------------------------------
 # Category definitions
@@ -91,6 +94,7 @@ _TOOLTIPS = {
 _active_category: str = "pid"
 _settings_built: bool = False
 _cat_tags: dict[str, dict] = {}  # {key: {"btn": tag, "indicator": tag, "group": tag}}
+_update_check_results: queue.Queue[tuple[str, str]] = queue.Queue()
 
 # Cached themes
 _cat_active_theme: int | None = None
@@ -666,26 +670,40 @@ def _check_for_updates():
                 latest_tag = data.get("tag_name", "").lstrip("v")
                 html_url = data.get("html_url", "")
 
-                try:
-                    current_ver = VERSION.lstrip("v")
-                except Exception:
-                    current_ver = "Unknown"
+                current_ver = VERSION.lstrip("v")
 
                 if current_ver != "Unknown" and latest_tag:
                     if current_ver != latest_tag:
                         msg = f"New version available: v{latest_tag}!"
-                        dpg.set_item_user_data("cfg_system_update_open", html_url)
-                        dpg.show_item("cfg_system_update_open")
+                        update_url = html_url
                     else:
                         msg = f"You are up to date! (v{current_ver})"
+                        update_url = ""
                 else:
                     msg = "Failed to parse versions."
+                    update_url = ""
 
-                dpg.set_value("cfg_system_update_status", msg)
+                _update_check_results.put((msg, update_url))
         except Exception as e:
-            dpg.set_value("cfg_system_update_status", f"Check failed: {e}")
+            log.warning("Update check failed: %s", e)
+            _update_check_results.put((f"Check failed: {e}", ""))
 
     threading.Thread(target=_do_check, daemon=True).start()
+
+
+def _apply_pending_update_check_results():
+    while True:
+        try:
+            msg, update_url = _update_check_results.get_nowait()
+        except queue.Empty:
+            break
+
+        dpg.set_value("cfg_system_update_status", msg)
+        dpg.set_item_user_data("cfg_system_update_open", update_url)
+        if update_url:
+            dpg.show_item("cfg_system_update_open")
+        else:
+            dpg.hide_item("cfg_system_update_open")
 
 
 def _build_system_settings():
@@ -834,6 +852,8 @@ def _on_reset(
 def update_settings_ui(bridge: BotBridge):
     if not dpg.does_item_exist("page_settings") or not dpg.is_item_shown("page_settings"):
         return
+
+    _apply_pending_update_check_results()
     
     status = bridge.latest_status()
     scale_sq = status.current_scale * status.current_scale

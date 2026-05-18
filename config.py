@@ -1,5 +1,6 @@
 """Single source of runtime configuration for NTE Auto-Fish."""
 import json
+import logging
 import os
 import random
 from dataclasses import asdict, dataclass, field
@@ -8,6 +9,7 @@ from typing import Tuple
 from modules.utils import APP_DIR
 
 DEFAULT_SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
+log = logging.getLogger("NTEFish")
 
 
 @dataclass
@@ -209,8 +211,8 @@ class AppConfig:
                         setattr(obj, key, value)
 
             update_obj(self, data)
-        except Exception as exc:
-            print(f"Failed to load settings: {exc}")
+        except (OSError, ValueError, TypeError) as exc:
+            log.error("Failed to load settings from %s: %s", path, exc)
 
 
 def jitter(base: float, spread: float, minimum: float = 0.0) -> float:

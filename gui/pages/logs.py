@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import deque
+import logging
 
 import dearpygui.dearpygui as dpg
 
@@ -35,6 +36,7 @@ _FILTERS = [_FILTER_ALL, _FILTER_ERROR, _FILTER_WARNING, _FILTER_SUCCESS]
 _active_filter: str = _FILTER_ALL
 _search_query: str = ""
 _auto_scroll: bool = True
+log = logging.getLogger("NTEFish")
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +197,7 @@ def _scroll_to_bottom():
     try:
         dpg.set_y_scroll("log_container", dpg.get_y_scroll_max("log_container"))
     except Exception:
-        pass
+        log.debug("Failed to auto-scroll log container.", exc_info=True)
 
 
 def _line_color(line: str) -> tuple[int, int, int]:

@@ -1,7 +1,7 @@
-opencv-python-headless
-numpy
-mss
-pydirectinput
-dearpygui
-keyboard
-screeninfo
+opencv-python-headless==4.10.0.84
+numpy==2.1.3
+mss==9.0.1
+pydirectinput==1.0.4
+dearpygui==1.11.1
+keyboard==0.13.5
+screeninfo==0.8.1

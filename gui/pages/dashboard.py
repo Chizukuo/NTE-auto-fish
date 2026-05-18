@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import deque
+import logging
 from typing import Callable
 
 import dearpygui.dearpygui as dpg
@@ -52,6 +53,7 @@ _theme_start: int | None = None
 _theme_pause: int | None = None
 _theme_stop: int | None = None
 _theme_calibrate: int | None = None
+log = logging.getLogger("NTEFish")
 
 
 def _ensure_themes():
@@ -259,6 +261,7 @@ def _resize_stat_cards():
     try:
         container_w = dpg.get_item_rect_size("page_container")[0]
     except Exception:
+        log.debug("Failed to read page_container size for card resize.", exc_info=True)
         return
     if container_w <= 0 or container_w == _last_container_w:
         return
@@ -271,7 +274,7 @@ def _resize_stat_cards():
         try:
             dpg.configure_item(tag, width=card_w)
         except Exception:
-            pass
+            log.debug("Failed to resize stat card: %s", tag, exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -311,6 +314,7 @@ def _update_visualizer(status: BotStatus):
             return
         width = max(200, int(panel_size[0] - 40))
     except Exception:
+        log.debug("Failed to update visualizer size.", exc_info=True)
         return
 
     dpg.configure_item("visualizer", width=width, height=int(72 * _s))

@@ -22,7 +22,7 @@ from config import CFG, AppConfig, DEFAULT_SETTINGS_PATH, jitter as cfg_jitter, 
 from modules.logic import FishingState, FishingStateMachine, PIDController
 from modules.utils import APP_DIR, bundled_path
 
-# Third-party imports — deferred so deps can be auto-installed in __main__.
+# Third-party imports — deferred so entrypoints can validate dependencies first.
 try:
     import cv2
     from screeninfo import get_monitors
@@ -77,6 +77,12 @@ class NTEFishingBot:
         cfg: AppConfig = CFG,
         bridge: Optional["BotBridge"] = None,
     ) -> None:
+        if not _TP_LOADED:
+            raise RuntimeError(
+                "Missing runtime dependencies. Install with: "
+                f"{sys.executable} -m pip install -r requirements.txt"
+            )
+
         self.cfg = cfg
         self.bridge = bridge
         
@@ -457,22 +463,22 @@ class NTEFishingBot:
             try:
                 self.input.release_all()
             except Exception:
-                pass
+                log.debug("Failed to release held keys during shutdown.", exc_info=True)
             try:
                 self.capture.close()
             except Exception:
-                pass
+                log.debug("Failed to close capture module during shutdown.", exc_info=True)
             try:
                 if self._csv_handle:
                     self._csv_handle.close()
                     self._csv_handle = None
             except Exception:
-                pass
+                log.debug("Failed to close debug CSV handle during shutdown.", exc_info=True)
             try:
                 self._push_status()
                 self._log(f"Bot stopped. Fish caught: {self._fish_count}")
             except Exception:
-                pass
+                log.debug("Failed to push final status during shutdown.", exc_info=True)
 
     def _enter_struggling(self) -> None:
         """Common setup when transitioning into STRUGGLING from any state."""
@@ -799,7 +805,7 @@ class NTEFishingBot:
                 if random.random() < 0.05:
                     self._csv_handle.flush()
             except Exception:
-                pass
+                log.debug("Failed to append debug CSV row.", exc_info=True)
 
         if (
             self._lost_cursor_frames >= self.cfg.timing.lost_frames_threshold
@@ -921,10 +927,11 @@ def _set_dpi_awareness() -> None:
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(1)
     except Exception:
+        log.debug("SetProcessDpiAwareness failed; trying SetProcessDPIAware.", exc_info=True)
         try:
             ctypes.windll.user32.SetProcessDPIAware()
         except Exception:
-            pass
+            log.debug("SetProcessDPIAware failed.", exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1150,10 +1157,12 @@ def _interactive_edit_config() -> None:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    # Auto-install missing dependencies before anything else
+    # Validate dependencies before runtime startup.
+    from modules.deps import CLI_PACKAGES, exit_if_missing_dependencies
+
+    exit_if_missing_dependencies(CLI_PACKAGES)
+
     if not _TP_LOADED:
-        from modules.deps import ensure_dependencies, CLI_PACKAGES
-        ensure_dependencies(CLI_PACKAGES)
         import cv2  # noqa: F811
         from screeninfo import get_monitors  # noqa: F811
         from modules.io_module import CaptureModule, InputModule  # noqa: F811

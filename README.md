@@ -26,7 +26,7 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 - **Runtime tuning**: PID, HSV thresholds, timing, input keys, hotkeys, calibration, and debug options can be adjusted from the Settings tab. ([Settings Guide](docs/SETTINGS_GUIDE.md))
 - **Resolution adaptation**: Ratio-based ROI calibration with resolution-proportional fallback supports 1080p, 2K, 4K, and custom display sizes automatically.
 - **Fast capture and input**: `mss` captures screen regions efficiently, while `PyDirectInput` sends game-friendly input events.
-- **Portable builds**: GitHub Actions produces a single-file Windows EXE for GUI and a lightweight source package for CLI that auto-installs dependencies on first run.
+- **Portable builds**: GitHub Actions produces a single-file Windows EXE for GUI and a lightweight source package for CLI.
 
 ## Project Structure
 
@@ -50,7 +50,7 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 ### Option 2: CLI Package
 
 1. Download `NTE-Auto-Fish-v*.*.*-CLI.zip` from [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) and extract it.
-2. Double-click `run.bat` — it checks for Python, then auto-installs missing dependencies on first run.
+2. Install dependencies once with `python -m pip install -r requirements.txt`.
 3. For more options, run `python main.py --help` in a terminal. Available commands: `start`, `calibrate`, `config show/set`, `reset`.
 
 ### Option 3: Run From Source

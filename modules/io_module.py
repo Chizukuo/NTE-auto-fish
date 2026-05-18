@@ -5,6 +5,7 @@ CaptureModule uses mss to grab BGR frames from screen regions. InputModule
 wraps pydirectinput and tracks held keys so state changes can release them.
 """
 import random
+import logging
 import threading
 import time
 from typing import Optional
@@ -15,6 +16,7 @@ import pydirectinput
 
 # pydirectinput's default pause is too slow for the control loop.
 pydirectinput.PAUSE = 0.0
+log = logging.getLogger("NTEFish")
 
 
 class CaptureModule:
@@ -121,7 +123,7 @@ class InputModule:
             try:
                 pydirectinput.keyUp(key)
             except Exception:
-                pass
+                log.debug("Failed to release key '%s' in release_all.", key, exc_info=True)
 
     def click(self, x: int, y: int) -> None:
         """Click a screen coordinate."""
@@ -138,6 +140,7 @@ class InputModule:
             pydirectinput.moveTo(mid_x, mid_y, duration=dur1)
             pydirectinput.moveTo(x, y, duration=dur2)
         except Exception:
+            log.debug("Humanized move failed; falling back to direct move.", exc_info=True)
             pydirectinput.moveTo(x, y, duration=random.uniform(d_min * 2, d_max * 2))
 
     def humanized_click(self, x: int, y: int, amp: int = 150, d_min: float = 0.15, d_max: float = 0.3) -> None:

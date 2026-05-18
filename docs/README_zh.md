@@ -24,7 +24,7 @@
 - **运行时调参**：PID、HSV 阈值、时序、输入按键、全局热键、校准和调试选项都可以在设置页调整。（[详细设置指南](SETTINGS_GUIDE_zh.md)）
 - **分辨率自适应**：基于比例的 ROI 校准配合分辨率比例缩放，自动适配 1080p、2K、4K 及自定义分辨率。
 - **高效截图与输入**：使用 `mss` 捕获屏幕区域，使用 `PyDirectInput` 发送更适合游戏环境的输入事件。
-- **便携构建**：GitHub Actions 生成 GUI 单文件 EXE 和 CLI 源码包（首次运行自动安装依赖）。
+- **便携构建**：GitHub Actions 生成 GUI 单文件 EXE 和 CLI 源码包。
 
 ## 项目结构
 
@@ -48,7 +48,7 @@
 ### 方式二：CLI 包
 
 1. 从 [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) 下载 `NTE-Auto-Fish-v*.*.*-CLI.zip` 并解压。
-2. 双击 `run.bat`，程序会自动检测 Python 并在首次运行时安装缺失的依赖。
+2. 先执行 `python -m pip install -r requirements.txt` 安装依赖。
 3. 更多用法请在终端运行 `python main.py --help`。可用命令：`start`、`calibrate`、`config show/set`、`reset`。
 
 ### 方式三：从源码运行

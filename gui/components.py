@@ -1,6 +1,7 @@
 """Reusable widget factories for the glassmorphism UI."""
 from __future__ import annotations
 
+import logging
 from typing import Callable
 
 import dearpygui.dearpygui as dpg
@@ -28,6 +29,7 @@ from gui.theme import (
 
 _glass_card_theme: int | None = None
 _button_themes: dict[str, int] = {}
+log = logging.getLogger("NTEFish")
 
 
 def _ensure_themes():
@@ -142,7 +144,7 @@ def _update_hsv_preview(prefix: str, hsv_range):
     try:
         dpg.configure_item(f"{prefix}_swatch", color=rgb, fill=rgb)
     except Exception:
-        pass
+        log.debug("Failed to update HSV preview: %s", prefix, exc_info=True)
 
 
 def _hsv_to_rgb(h: int, s: int, v: int) -> tuple[int, int, int]:

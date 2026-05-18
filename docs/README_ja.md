@@ -24,7 +24,7 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 - **実行中の調整**：PID、HSV しきい値、タイミング、入力キー、グローバルホットキー、校正、デバッグ設定を Settings タブから調整できます。([設定ガイド](SETTINGS_GUIDE_ja.md))
 - **解像度への適応**：比率ベースの ROI 校正と解像度比例フォールバックにより、1080p、2K、4K およびカスタム解像度に自動対応します。
 - **高速なキャプチャと入力**：`mss` で画面領域を取得し、`PyDirectInput` でゲーム向けの入力イベントを送信します。
-- **ポータブルビルド**：GitHub Actions が GUI 用の単一ファイル EXE と、初回実行時に依存関係を自動インストールする CLI ソースパッケージを生成します。
+- **ポータブルビルド**：GitHub Actions が GUI 用の単一ファイル EXE と CLI ソースパッケージを生成します。
 
 ## プロジェクト構成
 
@@ -48,7 +48,7 @@ Python、OpenCV、MSS、PyDirectInput、DearPyGui で構築されています。
 ### 方法 2：CLI パッケージ
 
 1. [Releases](https://github.com/Chizukuo/NTE-auto-fish/releases) から `NTE-Auto-Fish-v*.*.*-CLI.zip` をダウンロードして展開します。
-2. `run.bat` をダブルクリックすると、Python の確認と初回実行時の依存パッケージ自動インストールが行われます。
+2. 事前に `python -m pip install -r requirements.txt` を実行して依存関係をインストールしてください。
 3. 詳細はターミナルで `python main.py --help` を実行してください。利用可能なコマンド：`start`、`calibrate`、`config show/set`、`reset`。
 
 ### 方法 3：ソースから実行

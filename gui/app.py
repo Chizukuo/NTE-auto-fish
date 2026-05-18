@@ -46,10 +46,11 @@ class FishingGUI:
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
         except Exception:
+            log.debug("SetProcessDpiAwareness failed; trying SetProcessDPIAware.", exc_info=True)
             try:
                 ctypes.windll.user32.SetProcessDPIAware()
             except Exception:
-                pass
+                log.debug("SetProcessDPIAware failed.", exc_info=True)
 
     def _setup_dpg(self):
         dpg.create_context()
@@ -67,6 +68,7 @@ class FishingGUI:
                     self._fonts[name] = dpg.add_font(_FONT_PATH, scaled_size)
                 except Exception:
                     self._fonts[name] = None
+                    log.debug("Failed to load font '%s' at size %s.", name, size, exc_info=True)
 
         dpg.create_viewport(
             title=f"{APP_TITLE} Control Center",
@@ -192,7 +194,7 @@ class FishingGUI:
             try:
                 keyboard.remove_hotkey(handle)
             except Exception:
-                pass
+                log.debug("Failed to remove hotkey handle: %s", handle, exc_info=True)
         self._hotkey_handles.clear()
 
     def _toggle_bot_hotkey(self):
@@ -239,7 +241,7 @@ class FishingGUI:
             try:
                 self.bot.capture.close()
             except Exception:
-                pass
+                log.debug("Failed to close capture in bot thread exception path.", exc_info=True)
             self.bot.publish_status()
             log.exception(f"Bot crashed: {exc}")
 
@@ -273,7 +275,7 @@ class FishingGUI:
             y = mon.y + mon.height - vp_h - margin
             dpg.set_viewport_pos([x, y])
         except Exception:
-            pass
+            log.debug("Failed to position viewport away from ROI.", exc_info=True)
 
     # ── Main loop ───────────────────────────────────────────────────────
 

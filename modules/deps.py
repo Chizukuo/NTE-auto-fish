@@ -1,6 +1,5 @@
-"""Dependency auto-detection and installation for NTE Auto-Fish."""
+"""Dependency validation helpers for NTE Auto-Fish."""
 import importlib
-import subprocess
 import sys
 
 # CLI-only dependencies (no dearpygui, no keyboard)
@@ -28,60 +27,38 @@ def _is_importable(module_name: str) -> bool:
         return False
 
 
-def _pip_available() -> bool:
-    try:
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "--version"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-
-
-def _install(package_name: str) -> bool:
-    try:
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", package_name],
-        )
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
-
-def ensure_dependencies(packages: dict[str, str] | None = None) -> None:
-    """Check that all required packages are importable; install if missing."""
+def get_missing_dependencies(packages: dict[str, str] | None = None) -> list[tuple[str, str]]:
+    """Return [(module_name, package_name), ...] for dependencies that cannot be imported."""
     if packages is None:
         packages = CLI_PACKAGES
 
-    missing = [mod for mod in packages if not _is_importable(mod)]
-    if not missing:
-        return
+    missing = []
+    for module_name, package_name in packages.items():
+        if not _is_importable(module_name):
+            missing.append((module_name, package_name))
+    return missing
 
-    if not _pip_available():
-        print("ERROR: The following required packages are missing:")
-        for mod in missing:
-            print(f"  - {packages[mod]} (import: {mod})")
-        print()
-        print("pip is not available. Please install Python and pip, then run:")
-        print(f"  {sys.executable} -m pip install -r requirements.txt")
+
+def _format_missing_message(missing: list[tuple[str, str]]) -> str:
+    lines = ["ERROR: Missing required dependencies:"]
+    for module_name, package_name in missing:
+        lines.append(f"  - {package_name} (import: {module_name})")
+    lines.append("")
+    lines.append("Install dependencies with:")
+    lines.append(f"  {sys.executable} -m pip install -r requirements.txt")
+    return "\n".join(lines)
+
+
+def ensure_dependencies(packages: dict[str, str] | None = None) -> None:
+    """Raise RuntimeError when one or more required dependencies are missing."""
+    missing = get_missing_dependencies(packages)
+    if missing:
+        raise RuntimeError(_format_missing_message(missing))
+
+
+def exit_if_missing_dependencies(packages: dict[str, str] | None = None) -> None:
+    """Print a friendly error and exit when dependencies are missing."""
+    missing = get_missing_dependencies(packages)
+    if missing:
+        print(_format_missing_message(missing))
         sys.exit(1)
-
-    still_missing = []
-    for mod in missing:
-        pkg = packages[mod]
-        print(f"Installing {pkg}...")
-        if _install(pkg):
-            print(f"  {pkg} installed successfully.")
-        else:
-            still_missing.append(pkg)
-
-    if still_missing:
-        print("ERROR: Failed to install the following packages:")
-        for pkg in still_missing:
-            print(f"  - {pkg}")
-        print(f"Try manually: {sys.executable} -m pip install {' '.join(still_missing)}")
-        sys.exit(1)
-
-    importlib.invalidate_caches()
