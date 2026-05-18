@@ -43,7 +43,7 @@ jobs:
           pip install pip-audit bandit
 
       - name: Run dependency vulnerability audit
-        run: pip-audit --strict
+        run: pip-audit -r requirements.txt --strict
 
       - name: Run static security scan
         run: bandit -q -r . -x tests,tools

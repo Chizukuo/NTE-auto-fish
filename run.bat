@@ -7,4 +7,9 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 python main.py %*
-if %errorlevel% neq 0 pause
+if %errorlevel% neq 0 (
+    echo.
+    echo If this is your first run, install dependencies with:
+    echo   python -m pip install -r requirements.txt
+    pause
+)
