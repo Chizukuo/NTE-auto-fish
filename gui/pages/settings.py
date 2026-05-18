@@ -5,6 +5,7 @@ import json
 import logging
 import queue
 import threading
+import urllib.parse
 import urllib.request
 import webbrowser
 from typing import Callable
@@ -39,6 +40,16 @@ _RESULT_METHODS = {
     "Click center": "click",
     "Press exit key": "key",
 }
+
+_LATEST_RELEASE_API_URL = "https://api.github.com/repos/Chizukuo/NTE-auto-fish/releases/latest"
+_LATEST_RELEASE_API_HOST = "api.github.com"
+
+
+def _validated_update_api_url() -> str:
+    parsed = urllib.parse.urlparse(_LATEST_RELEASE_API_URL)
+    if parsed.scheme != "https" or parsed.hostname != _LATEST_RELEASE_API_HOST:
+        raise ValueError("Unexpected update check endpoint")
+    return _LATEST_RELEASE_API_URL
 
 _TOOLTIPS = {
     "Kp": "Proportional gain. Higher = stronger correction for large errors.",
@@ -661,11 +672,13 @@ def _check_for_updates():
 
     def _do_check():
         try:
+            api_url = _validated_update_api_url()
             req = urllib.request.Request(
-                "https://api.github.com/repos/Chizukuo/NTE-auto-fish/releases/latest",
+                api_url,
                 headers={"User-Agent": "NTE-auto-fish"}
             )
-            with urllib.request.urlopen(req, timeout=5) as response:
+            # The request target is a hard-coded HTTPS GitHub API URL validated above.
+            with urllib.request.urlopen(req, timeout=5) as response:  # nosec B310
                 data = json.loads(response.read().decode("utf-8"))
                 latest_tag = data.get("tag_name", "").lstrip("v")
                 html_url = data.get("html_url", "")

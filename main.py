@@ -11,11 +11,11 @@ import json
 import logging
 import logging.handlers
 import os
-import random
 import sys
 import threading
 import time
 from dataclasses import asdict
+from random import SystemRandom
 from typing import TYPE_CHECKING, Optional
 
 from config import CFG, AppConfig, DEFAULT_SETTINGS_PATH, jitter as cfg_jitter, sample_noise, sample_reaction
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from gui.bridge import BotBridge  # noqa: E402
 
 # CWD is set inside run() to avoid side effects on import
+_RNG = SystemRandom()
 
 _DEFAULT_SCREEN_W = 3840
 _DEFAULT_SCREEN_H = 2160
@@ -488,7 +489,7 @@ class NTEFishingBot:
 
         # Humanized hook reaction latency
         if self.cfg.humanization.enabled:
-            react = random.uniform(
+            react = _RNG.uniform(
                 self.cfg.humanization.hook_reaction_min,
                 self.cfg.humanization.hook_reaction_max
             )
@@ -707,7 +708,7 @@ class NTEFishingBot:
                                 hold_factor = 1.0 + intensity * (hcfg.adaptive_pulse_hold_max_scale - 1.0)
                             else:
                                 hold_factor = 1.0
-                            hold_t = random.uniform(hcfg.pulse_hold_min * hold_factor, hcfg.pulse_hold_max * hold_factor)
+                            hold_t = _RNG.uniform(hcfg.pulse_hold_min * hold_factor, hcfg.pulse_hold_max * hold_factor)
                             self._hum_pulse_end = now + hold_t
                             self._hum_pulse_state = "HOLD"
                             self.input.hold(target_key)
@@ -717,7 +718,7 @@ class NTEFishingBot:
                                 gap_factor = max(hcfg.adaptive_pulse_gap_min_scale, 1.0 - intensity * (1.0 - hcfg.adaptive_pulse_gap_min_scale))
                             else:
                                 gap_factor = 1.0
-                            gap_t = random.uniform(hcfg.pulse_release_min * gap_factor, hcfg.pulse_release_max * gap_factor)
+                            gap_t = _RNG.uniform(hcfg.pulse_release_min * gap_factor, hcfg.pulse_release_max * gap_factor)
                             self._hum_pulse_end = now + gap_t
                             self._hum_pulse_state = "GAP"
                             self.input.release(target_key)
@@ -729,9 +730,9 @@ class NTEFishingBot:
                     self.input.release(self.cfg.keys.right)
                     self._hum_pulse_state = "IDLE"
                     
-                    if hcfg.deadband_tap_enabled and random.random() < hcfg.deadband_tap_chance:
+                    if hcfg.deadband_tap_enabled and _RNG.random() < hcfg.deadband_tap_chance:
                         tap_dir = self.cfg.keys.right if error > 0 else self.cfg.keys.left
-                        tap_dur = random.uniform(hcfg.deadband_tap_duration_min, hcfg.deadband_tap_duration_max)
+                        tap_dur = _RNG.uniform(hcfg.deadband_tap_duration_min, hcfg.deadband_tap_duration_max)
                         # We use pulse_hold here safely since deadband taps are tiny and rare, 
                         # but ideally this should also be non-blocking. Let's just use pulse_hold as it's quick.
                         # Wait, tap_dur is ~0.02s, which is a tiny block, acceptable in deadband.
@@ -802,7 +803,7 @@ class NTEFishingBot:
                     ]
                 )
                 # Flush occasionally or let OS handle it for performance
-                if random.random() < 0.05:
+                if _RNG.random() < 0.05:
                     self._csv_handle.flush()
             except Exception:
                 log.debug("Failed to append debug CSV row.", exc_info=True)
@@ -899,8 +900,8 @@ class NTEFishingBot:
             
             if self.cfg.humanization.enabled:
                 hcfg = self.cfg.humanization
-                cx = self._mon_x + base_x + random.randint(-hcfg.mouse_offset_x, hcfg.mouse_offset_x)
-                cy = self._mon_y + base_y + random.randint(-hcfg.mouse_offset_y, hcfg.mouse_offset_y)
+                cx = self._mon_x + base_x + _RNG.randint(-hcfg.mouse_offset_x, hcfg.mouse_offset_x)
+                cy = self._mon_y + base_y + _RNG.randint(-hcfg.mouse_offset_y, hcfg.mouse_offset_y)
                 self.input.humanized_click(
                     cx, cy,
                     amp=hcfg.mouse_move_curve_amplitude,

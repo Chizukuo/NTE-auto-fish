@@ -69,7 +69,7 @@ jobs:
         pip install pyinstaller
 
     - name: Run tests
-      run: python -m unittest discover -s tests -v
+      run: python -m unittest discover -s tests -t . -v
 
     - name: Build GUI (single EXE)
       shell: bash
