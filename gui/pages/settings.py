@@ -15,6 +15,7 @@ from screeninfo import get_monitors
 
 from config import CFG
 from gui.bridge import BotBridge
+from modules.utils import VERSION
 from gui.components import (apply_glass_card_theme, caption_text, hsv_editor,
                             section_header, styled_button, update_hsv_preview)
 from gui.theme import (ACCENT, CARD_GAP, TEXT_MUTED, _ui_scale as _s,
@@ -856,7 +857,7 @@ def _on_reset(
     on_hotkeys_changed: Callable[[], None] | None = None,
 ):
     CFG.reset()
-    _refresh_values(bridge)
+    update_settings_ui(bridge)
     if on_hotkeys_changed:
         on_hotkeys_changed()
     log.info("Settings reset to defaults.")

@@ -202,7 +202,7 @@ class FishingGUI:
         if status.is_running:
             self.bridge.send_cmd("pause")
         elif status.is_stopped or not (self.bot_thread and self.bot_thread.is_alive()):
-            self._start_bot()
+            self._start_bot(paused=False)
         else:
             self.bridge.send_cmd("resume")
 
@@ -211,7 +211,7 @@ class FishingGUI:
 
     # ── Bot lifecycle ───────────────────────────────────────────────────
 
-    def _start_bot(self):
+    def _start_bot(self, paused: bool = False):
         with self._bot_lock:
             if self.bot_thread and self.bot_thread.is_alive():
                 if self.bot._stop_flag:
@@ -222,11 +222,14 @@ class FishingGUI:
                 self.bridge.send_cmd("resume")
                 return
 
-            self.bot.prepare_for_run(paused=True)
+            self.bot.prepare_for_run(paused=paused)
             self.bot.publish_status()
             self.bot_thread = threading.Thread(target=self._run_bot_thread, daemon=True)
             self.bot_thread.start()
-            log.info("Bot started paused.")
+            if paused:
+                log.info("Bot started paused.")
+            else:
+                log.info("Bot started.")
 
     def _run_bot_thread(self):
         try:
@@ -286,7 +289,7 @@ class FishingGUI:
         try:
             dpg.show_viewport()
             self._position_viewport_away_from_roi()
-            self._start_bot()
+            self._start_bot(paused=True)
             while dpg.is_dearpygui_running():
                 start_t = time.perf_counter()
                 

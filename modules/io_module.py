@@ -102,18 +102,23 @@ class InputModule:
         clean it up if the bot stops mid-pulse.  Pass *stop_event* to
         make the sleeps interruptible.
         """
-        wait = stop_event.wait if stop_event else time.sleep
         with self._lock:
             self._held.add(key)
         try:
             pydirectinput.keyDown(key)
-            wait(timeout=hold_secs)
+            if stop_event:
+                stop_event.wait(timeout=hold_secs)
+            else:
+                time.sleep(hold_secs)
         finally:
             pydirectinput.keyUp(key)
             with self._lock:
                 self._held.discard(key)
         if release_secs > 0 and (stop_event is None or not stop_event.is_set()):
-            wait(timeout=release_secs)
+            if stop_event:
+                stop_event.wait(timeout=release_secs)
+            else:
+                time.sleep(release_secs)
 
     def release_all(self) -> None:
         """Release all tracked held keys."""

@@ -328,38 +328,16 @@ class NTEFishingBot:
             })
             self._log(f"[Calibration] Bar ROI (fallback) -> {self._roi_bar}")
 
-        # --- Button ROI (template matching with resolution fallback) ---
+        # --- Button ROI ---
         scale_w = self._screen_w / _DEFAULT_SCREEN_W
         scale_h = self._screen_h / _DEFAULT_SCREEN_H
-        button_fallback = self._offset_roi({
+        self._roi_button = self._offset_roi({
             "top": int(1760 * scale_h),
             "left": int(3400 * scale_w),
             "width": int(440 * scale_w),
             "height": int(360 * scale_h),
         })
-
-        tmpl_f = cv2.imread(_resource_path("templates", "button_f.png"))
-        if tmpl_f is not None:
-            result = self.vision.find_template_multi_scale(
-                scene,
-                tmpl_f,
-                self.cfg.calibration,
-            )
-            if result:
-                x1, y1, x2, y2 = result
-                self._roi_button = self._offset_roi({
-                    "top": max(0, y1 - pad),
-                    "left": max(0, x1 - pad),
-                    "width": (x2 - x1) + pad * 2,
-                    "height": (y2 - y1) + pad * 2,
-                })
-                self._log(f"[Calibration] Button ROI (template) -> {self._roi_button}")
-            else:
-                self._roi_button = button_fallback
-                self._log(f"[Calibration] Button ROI (fallback) -> {self._roi_button}")
-        else:
-            self._roi_button = button_fallback
-            self._log(f"[Calibration] Button ROI (fallback) -> {self._roi_button}")
+        self._log(f"[Calibration] Button ROI -> {self._roi_button}")
 
         self._load_error_roi()
 

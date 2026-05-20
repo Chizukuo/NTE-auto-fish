@@ -134,7 +134,12 @@ def _hsv_preview(prefix: str, hsv_range):
 
 
 def _on_hsv_changed(prefix: str, hsv_range, attr: str, value):
-    setattr(hsv_range, attr, tuple(value[:3]))
+    h = min(179, max(0, int(value[0])))
+    s = min(255, max(0, int(value[1])))
+    v = min(255, max(0, int(value[2])))
+    clamped = (h, s, v)
+    setattr(hsv_range, attr, clamped)
+    dpg.set_value(f"{prefix}_{attr}", list(clamped))
     _update_hsv_preview(prefix, hsv_range)
 
 

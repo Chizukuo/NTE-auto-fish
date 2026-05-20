@@ -52,8 +52,9 @@ jobs:
     runs-on: windows-latest
     if: |
       always() &&
+      needs.security.result == 'success' &&
       (github.event_name != 'push' || needs.release-please.outputs.release_created == 'true')
-    needs: [release-please]
+    needs: [release-please, security]
     steps:
     - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
