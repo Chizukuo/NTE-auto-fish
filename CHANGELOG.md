@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.8.0...v0.9.0) (2026-05-20)
+
+
+### Features
+
+* Enhance CI workflows, improve logging, and add unit tests ([#36](https://github.com/Chizukuo/NTE-auto-fish/issues/36)) ([bfb130d](https://github.com/Chizukuo/NTE-auto-fish/commit/bfb130de07cd31ad4ef704b7d7c33ff644445f44))
+
+
+### Bug Fixes
+
+* **core:** throttle GUI loop and handle capture crash on startup ([#30](https://github.com/Chizukuo/NTE-auto-fish/issues/30)) ([b1c8f41](https://github.com/Chizukuo/NTE-auto-fish/commit/b1c8f415232e8e993266445bb50dd63a13696f3b))
+* resolve settings NameError, bot lifecycle, and HSV limit bugs ([fe1a3c5](https://github.com/Chizukuo/NTE-auto-fish/commit/fe1a3c53a932fb294a420e1b835ad0c90f1ea486))
+
 ## [0.8.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.7.2...v0.8.0) (2026-05-16)
 
 
