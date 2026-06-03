@@ -2,7 +2,6 @@
 import dataclasses
 import logging
 import queue
-import time
 from typing import Optional, Tuple
 
 from modules.logic import FishingState
@@ -131,8 +130,3 @@ class BridgeHandler(logging.Handler):
             self.bridge.push_log(msg)
         except Exception:
             self.handleError(record)
-
-
-def _fmt_time() -> str:
-    t = time.localtime()
-    return f"{t.tm_hour:02d}:{t.tm_min:02d}:{t.tm_sec:02d}"

@@ -27,11 +27,12 @@ try:
     import cv2
     from screeninfo import get_monitors
     from modules.io_module import CaptureModule, InputModule
-    from modules.vision import VisionModule
+    from modules.vision import VisionModule, _ERROR_WHITE_PIXEL_MIN as _ERR_WHITE_BASE
     _TP_LOADED = True
 except ImportError:
     cv2 = CaptureModule = InputModule = VisionModule = None  # type: ignore[assignment]
     get_monitors = None  # type: ignore[assignment]
+    _ERR_WHITE_BASE = 1200  # mirrors modules.vision._ERROR_WHITE_PIXEL_MIN
     _TP_LOADED = False
 
 if TYPE_CHECKING:
@@ -134,8 +135,8 @@ class NTEFishingBot:
         self._is_stopped = True
         self._fps = 0.0
         self._last_time = time.time()
-        self._last_action = "NONE"
         self._consecutive_waiting_timeouts = 0
+        self._reset_humanization_state()
 
         self._log("Bot initialized.")
         self._csv_handle = None
@@ -163,8 +164,8 @@ class NTEFishingBot:
         self._fps = 0.0
         self._session_start = time.time()
         self._last_time = time.time()
-        self._last_action = "NONE"
         self._consecutive_waiting_timeouts = 0
+        self._reset_humanization_state()
 
     def request_stop(self) -> None:
         self._stop_flag = True
@@ -294,9 +295,8 @@ class NTEFishingBot:
         scale_sq = self._current_scale * self._current_scale
         self._scaled_min_area = max(self.cfg.detection_min_area * scale_sq, 1.0)
         self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 1.0))
-        self._scaled_error_white_min = int(max(1200 * scale_sq, 10.0))
+        self._scaled_error_white_min = int(max(_ERR_WHITE_BASE * scale_sq, 10.0))
         
-        pad = self.cfg.calibration.roi_padding
         self._log(
             f"[Calibration] Screen resolution: {self._screen_w}x{self._screen_h}"
         )
@@ -459,11 +459,20 @@ class NTEFishingBot:
             except Exception:
                 log.debug("Failed to push final status during shutdown.", exc_info=True)
 
+    def _reset_humanization_state(self) -> None:
+        """Reset humanized pulse/reaction state so it never leaks across struggles or runs."""
+        self._hum_reaction_end = 0.0
+        self._hum_pulse_end = 0.0
+        self._hum_pulse_state = "IDLE"
+        self._hum_target_action = "NONE"
+        self._last_action = "NONE"
+
     def _enter_struggling(self) -> None:
         """Common setup when transitioning into STRUGGLING from any state."""
         self._bait_error_count = 0
         self._consecutive_waiting_timeouts = 0
         self._bar_detected_in_struggle = False
+        self._reset_humanization_state()
 
         # Humanized hook reaction latency
         if self.cfg.humanization.enabled:
@@ -484,6 +493,23 @@ class NTEFishingBot:
         self._cursor_x_rel = None
         self._target_x_rel = None
         self.sm.transition(FishingState.STRUGGLING)
+
+    def _interruptible_wait(self, timeout: float) -> bool:
+        """Sleep up to *timeout* seconds, waking early on stop or pause.
+
+        Stop wakes instantly via the stop event; pause is polled at <=50ms
+        granularity. Returns True if a stop or pause was observed, so callers
+        that would otherwise advance state can yield back to the main loop.
+        """
+        if timeout <= 0:
+            return self._stop_flag or self._is_paused
+        deadline = time.monotonic() + timeout
+        while not (self._stop_flag or self._is_paused):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            self._stop_event.wait(timeout=min(remaining, 0.05))
+        return True
 
     def _handle_idle(self) -> None:
         self._log("[IDLE] Casting...")
@@ -520,7 +546,9 @@ class NTEFishingBot:
             anim_secs = cfg_jitter(anim_secs, self.cfg.humanization.cast_animation_jitter, minimum=0.8)
         remaining = anim_secs - 0.3
         if remaining > 0:
-            self._stop_event.wait(timeout=remaining)
+            # Wake promptly on pause/stop; the only follow-up is a
+            # side-effect-free transition, so no need to bail here.
+            self._interruptible_wait(remaining)
         if self._stop_flag:
             return
         self.sm.transition(FishingState.WAITING)
@@ -620,13 +648,6 @@ class NTEFishingBot:
 
             if hcfg.enabled:
                 now = time.perf_counter()
-                
-                # Initialize state variables on first run or transition
-                if not hasattr(self, "_hum_reaction_end"):
-                    self._hum_reaction_end = 0.0
-                    self._hum_pulse_end = 0.0
-                    self._hum_pulse_state = "IDLE"
-                    self._hum_target_action = "NONE"
 
                 # PID noise overlay
                 if hcfg.pid_noise_enabled:
@@ -711,9 +732,7 @@ class NTEFishingBot:
                     if hcfg.deadband_tap_enabled and _RNG.random() < hcfg.deadband_tap_chance:
                         tap_dir = self.cfg.keys.right if error > 0 else self.cfg.keys.left
                         tap_dur = _RNG.uniform(hcfg.deadband_tap_duration_min, hcfg.deadband_tap_duration_max)
-                        # We use pulse_hold here safely since deadband taps are tiny and rare, 
-                        # but ideally this should also be non-blocking. Let's just use pulse_hold as it's quick.
-                        # Wait, tap_dur is ~0.02s, which is a tiny block, acceptable in deadband.
+                        # Deadband taps are tiny (~0.02s) and rare; the brief block is acceptable here.
                         self.input.pulse_hold(tap_dir, tap_dur, 0.0, self._stop_event)
                         
                     action = "NONE"
@@ -828,8 +847,9 @@ class NTEFishingBot:
         result_w = self.cfg.timing.result_wait_secs
         if self.cfg.humanization.enabled:
             result_w = cfg_jitter(result_w, self.cfg.humanization.result_wait_jitter, minimum=1.0)
-        self._stop_event.wait(timeout=result_w)
-        if self._stop_flag:
+        # Bail on stop or pause before the side-effecting follow-up
+        # (fish count + dismiss click). On resume _handle_result re-runs.
+        if self._interruptible_wait(result_w):
             return
 
         # Verify the mini-game actually ended before counting a fish.
@@ -950,7 +970,7 @@ def _cmd_config_show(args: argparse.Namespace) -> None:
             else:
                 print(f"Unknown config path: {section}")
                 return
-        print(json.dumps({parts[-1]: obj} if isinstance(obj, (dict, list)) else {parts[-1]: obj}, indent=4, ensure_ascii=False))
+        print(json.dumps({parts[-1]: obj}, indent=4, ensure_ascii=False))
     else:
         print(json.dumps(data, indent=4, ensure_ascii=False))
 

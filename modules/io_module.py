@@ -66,12 +66,21 @@ class InputModule:
         self._lock = threading.Lock()
 
     def press(self, key: str, duration: float = 0.05) -> None:
-        """Press and release a key without changing the held-key set."""
-        pydirectinput.keyDown(key)
+        """Press and release a key, tracking it as held for the duration.
+
+        Tracking lets a concurrent release_all() (e.g. a stop issued from the
+        GUI thread mid-press) clean the key up. A redundant keyUp from both
+        paths is harmless.
+        """
+        with self._lock:
+            self._held.add(key)
         try:
+            pydirectinput.keyDown(key)
             time.sleep(duration)
         finally:
             pydirectinput.keyUp(key)
+            with self._lock:
+                self._held.discard(key)
 
     def hold(self, key: str) -> None:
         """Keep a key held down."""
