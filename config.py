@@ -76,6 +76,9 @@ class TimingConfig:
     struggling_poll_interval: float = 0.01
     bait_error_threshold: int = 3
     max_struggle_secs: float = 120.0
+    # Debounce for the WAITING bite trigger: ignore blue in the button ROI until
+    # it has cleared once (residual cast-UI blue), or this many seconds elapse.
+    bite_arm_delay_secs: float = 2.5
 
 
 @dataclass

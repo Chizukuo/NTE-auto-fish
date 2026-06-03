@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Optional
 
 from config import CFG, AppConfig, DEFAULT_SETTINGS_PATH, jitter as cfg_jitter, sample_noise, sample_reaction
 from modules.logic import FishingState, FishingStateMachine, PIDController
-from modules.utils import APP_DIR, bundled_path
+from modules.utils import APP_DIR, ELEVATION_WARNING, bundled_path, is_elevated
 
 # Third-party imports — deferred so entrypoints can validate dependencies first.
 try:
@@ -136,6 +136,7 @@ class NTEFishingBot:
         self._fps = 0.0
         self._last_time = time.time()
         self._consecutive_waiting_timeouts = 0
+        self._bite_armed = False
         self._reset_humanization_state()
 
         self._log("Bot initialized.")
@@ -165,6 +166,7 @@ class NTEFishingBot:
         self._session_start = time.time()
         self._last_time = time.time()
         self._consecutive_waiting_timeouts = 0
+        self._bite_armed = False
         self._reset_humanization_state()
 
     def request_stop(self) -> None:
@@ -551,7 +553,25 @@ class NTEFishingBot:
             self._interruptible_wait(remaining)
         if self._stop_flag:
             return
+        # Disarm the bite trigger so residual cast-UI blue at WAITING entry
+        # isn't mistaken for a bite (see _accept_bite).
+        self._bite_armed = False
         self.sm.transition(FishingState.WAITING)
+
+    def _accept_bite(self, blue_present: bool, time_in_waiting: float) -> bool:
+        """Debounce the WAITING bite trigger.
+
+        Residual blue from the cast UI is often still in the button ROI when
+        WAITING begins, which would fire an instant false 'bite'. Arm the
+        trigger only once blue has cleared (rising edge), or after a fallback
+        delay if it never clears, then accept a blue reading as a real bite.
+        """
+        if not blue_present:
+            self._bite_armed = True
+            return False
+        if not self._bite_armed and time_in_waiting >= self.cfg.timing.bite_arm_delay_secs:
+            self._bite_armed = True
+        return self._bite_armed
 
     def _handle_waiting(self) -> None:
         if self.sm.time_in_state > self.cfg.timing.bite_timeout_secs:
@@ -571,11 +591,12 @@ class NTEFishingBot:
             return
 
         btn_img = self.capture.grab_bgr(self._roi_button)
-        if self.vision.check_blue_trigger(
+        blue = self.vision.check_blue_trigger(
             btn_img,
             self.cfg.hsv.blue,
             self._scaled_blue_pixels,
-        ):
+        )
+        if self._accept_bite(blue, self.sm.time_in_state):
             self._log("[WAITING] Fish hooked (blue trigger).")
             self._enter_struggling()
         else:
@@ -1160,6 +1181,9 @@ if __name__ == "__main__":
     from modules.deps import CLI_PACKAGES, exit_if_missing_dependencies
 
     exit_if_missing_dependencies(CLI_PACKAGES)
+
+    if not is_elevated():
+        log.warning(ELEVATION_WARNING)
 
     if not _TP_LOADED:
         import cv2  # noqa: F811

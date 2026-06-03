@@ -1,4 +1,5 @@
 """Shared utilities for NTE Auto-Fish."""
+import ctypes
 import logging
 import os
 import sys
@@ -37,3 +38,27 @@ def get_version() -> str:
 
 
 VERSION = get_version()
+
+# Shown when the bot lacks the admin rights many games require for input.
+ELEVATION_WARNING = (
+    "Not running as administrator. If the game runs elevated (NTE and many "
+    "games do), key inputs (Pull Left/Right) will NOT register even though the "
+    "on-screen tracker works. Re-launch with run.bat / start_gui.bat (these "
+    "auto-elevate) or right-click the launcher and choose 'Run as administrator'."
+)
+
+
+def is_elevated() -> bool:
+    """Return True if the process has administrator privileges.
+
+    Windows blocks synthetic input (SendInput) from a lower integrity level to
+    an elevated window, so a non-elevated bot can see the screen but cannot
+    control an elevated game. Non-Windows platforms report True (not applicable).
+    """
+    if os.name != "nt":
+        return True
+    try:
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        log.debug("IsUserAnAdmin check failed; assuming not elevated.", exc_info=True)
+        return False

@@ -15,7 +15,7 @@ from gui.pages.settings import create_settings, update_settings_ui
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import _FONT_PATH, FONT_SIZES, build_global_theme, set_ui_scale
 from main import NTEFishingBot, log
-from modules.utils import VERSION, bundled_path
+from modules.utils import ELEVATION_WARNING, VERSION, bundled_path, is_elevated
 from screeninfo import get_monitors
 
 
@@ -34,6 +34,8 @@ class FishingGUI:
         self._enable_hidpi()
         self.bridge = BotBridge()
         self.bot = NTEFishingBot(bridge=self.bridge)
+        if not is_elevated():
+            log.warning(ELEVATION_WARNING)
         self.bot_thread: threading.Thread | None = None
         self._bot_lock = threading.Lock()
         self._hotkey_handles: list = []
