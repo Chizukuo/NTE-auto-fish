@@ -14,6 +14,7 @@ Built with Python, OpenCV, MSS, PyDirectInput, and DearPyGui.
 
 [![GitHub License](https://img.shields.io/github/license/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/blob/main/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/releases)
+[![GitHub Downloads](https://img.shields.io/github/downloads/Chizukuo/NTE-auto-fish/total)](https://github.com/Chizukuo/NTE-auto-fish/releases)
 [![Build Status](https://github.com/Chizukuo/NTE-auto-fish/actions/workflows/build.yml/badge.svg)](https://github.com/Chizukuo/NTE-auto-fish/actions)
 [![GitHub Stars](https://img.shields.io/github/stars/Chizukuo/NTE-auto-fish)](https://github.com/Chizukuo/NTE-auto-fish/stargazers)
 
