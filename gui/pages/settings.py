@@ -18,7 +18,7 @@ from gui.bridge import BotBridge
 from modules.utils import VERSION
 from gui.components import (apply_glass_card_theme, caption_text, hsv_editor,
                             section_header, styled_button, update_hsv_preview)
-from gui.theme import (ACCENT, CARD_GAP, TEXT_MUTED, _ui_scale as _s,
+from gui.theme import (ACCENT, CARD_GAP, TEXT_MUTED, TEXT_PRIMARY, _ui_scale as _s,
                        build_settings_cat_theme)
 
 log = logging.getLogger("NTEFish")
@@ -111,6 +111,16 @@ _update_check_results: queue.Queue[tuple[str, str]] = queue.Queue()
 # Cached themes
 _cat_active_theme: int | None = None
 _cat_inactive_theme: int | None = None
+
+_session_manager = None  # set via init_session_manager()
+_last_known_active_id: str | None = None
+
+
+def init_session_manager(mgr) -> None:
+    """Called once at startup to give the settings page access to session data."""
+    global _session_manager
+    _session_manager = mgr
+
 
 
 def _ensure_themes():
@@ -242,6 +252,9 @@ def _switch_category(key: str):
     _active_category = key
     _settings_built = True
 
+    if key == "vision":
+        _rebuild_session_list()
+
 
 # ---------------------------------------------------------------------------
 # Settings panels
@@ -280,6 +293,149 @@ def _build_pid_settings():
         )
 
 
+def _rebuild_session_list() -> None:
+    """Clear and repopulate the session list child-window."""
+    if _session_manager is None:
+        return
+    if not dpg.does_item_exist("session_list_window"):
+        return
+
+    dpg.delete_item("session_list_window", children_only=True)
+
+    sessions = _session_manager.load_sessions()
+    active_id = _session_manager.active_session_id()
+
+    if not sessions:
+        dpg.add_text("No sessions yet.", parent="session_list_window", color=TEXT_MUTED)
+        return
+
+    for meta in reversed(sessions):
+        is_active = meta.id == active_id
+        prefix = "● " if is_active else "  "
+        label = f"{prefix}{meta.start[:16]} · {meta.fish_count} fish"
+        row_tag = f"session_row_{meta.id}"
+
+        with dpg.group(horizontal=True, parent="session_list_window", tag=row_tag):
+            text_tag = f"session_text_{meta.id}" if is_active else dpg.generate_uuid()
+            dpg.add_text(label, tag=text_tag, color=TEXT_PRIMARY if is_active else TEXT_MUTED)
+            dpg.add_spacer(width=int(8 * _s))
+            styled_button(
+                "Delete", f"session_del_{meta.id}",
+                callback=lambda s, a, u: _on_delete_session(u),
+                variant="danger",
+                width=int(56 * _s), height=int(22 * _s),
+                user_data=meta.id,
+            )
+            dpg.add_spacer(width=int(4 * _s))
+            styled_button(
+                "Export", f"session_exp_{meta.id}",
+                callback=lambda s, a, u: _on_export_session(u),
+                variant="neutral",
+                width=int(56 * _s), height=int(22 * _s),
+                user_data=meta.id,
+            )
+
+
+def _on_delete_session(session_id: str) -> None:
+    if _session_manager is None:
+        return
+    if session_id == _session_manager.active_session_id():
+        log.warning("Cannot delete the active session while the bot is running.")
+        return
+    _session_manager.delete_session(session_id)
+    _rebuild_session_list()
+
+
+def _on_export_session(session_id: str) -> None:
+    """Open a small modal with CSV / JSON / XLSX buttons."""
+    modal_tag = "export_modal"
+    if dpg.does_item_exist(modal_tag):
+        dpg.delete_item(modal_tag)
+
+    with dpg.window(
+        label="Export Session",
+        tag=modal_tag,
+        modal=True,
+        no_resize=True,
+        width=int(280 * _s),
+        height=int(130 * _s),
+        pos=(
+            dpg.get_viewport_width() // 2 - int(140 * _s),
+            dpg.get_viewport_height() // 2 - int(65 * _s),
+        ),
+    ):
+        dpg.add_text("Choose export format:", color=TEXT_MUTED)
+        dpg.add_spacer(height=int(6 * _s))
+        with dpg.group(horizontal=True):
+            for fmt, ext in [("CSV", "csv"), ("JSON", "json"), ("XLSX", "xlsx")]:
+                styled_button(
+                    fmt, f"export_btn_{fmt}_{session_id}",
+                    callback=lambda s, a, u: _do_export(u[0], u[1], modal_tag),
+                    variant="neutral",
+                    width=int(56 * _s), height=int(26 * _s),
+                    user_data=(session_id, ext),
+                )
+                dpg.add_spacer(width=int(4 * _s))
+
+
+def _do_export(session_id: str, fmt: str, modal_tag: str) -> None:
+    """Open a DPG path-input modal then write the export."""
+    if dpg.does_item_exist(modal_tag):
+        dpg.delete_item(modal_tag)
+
+    path_modal = "export_path_modal"
+    if dpg.does_item_exist(path_modal):
+        dpg.delete_item(path_modal)
+
+    default_name = f"{session_id}.{fmt}"
+
+    def _on_confirm(s, a, u):
+        dest = dpg.get_value("export_path_input").strip()
+        if dpg.does_item_exist(path_modal):
+            dpg.delete_item(path_modal)
+        if not dest:
+            return
+        try:
+            _session_manager.export_session(session_id, dest, fmt)
+            log.info("Session exported to %s", dest)
+        except Exception:
+            log.warning("Session export failed.", exc_info=True)
+
+    with dpg.window(
+        label=f"Export as {fmt.upper()}",
+        tag=path_modal,
+        modal=True,
+        no_resize=True,
+        width=int(360 * _s),
+        height=int(110 * _s),
+        pos=(
+            dpg.get_viewport_width() // 2 - int(180 * _s),
+            dpg.get_viewport_height() // 2 - int(55 * _s),
+        ),
+    ):
+        dpg.add_text("Save path:", color=TEXT_MUTED)
+        dpg.add_input_text(
+            tag="export_path_input",
+            default_value=default_name,
+            width=-1,
+        )
+        dpg.add_spacer(height=int(6 * _s))
+        with dpg.group(horizontal=True):
+            styled_button(
+                "Save", "export_path_ok",
+                callback=_on_confirm,
+                variant="neutral",
+                width=int(70 * _s), height=int(26 * _s),
+            )
+            dpg.add_spacer(width=int(6 * _s))
+            styled_button(
+                "Cancel", "export_path_cancel",
+                callback=lambda s, a, u: dpg.delete_item(path_modal) if dpg.does_item_exist(path_modal) else None,
+                variant="danger",
+                width=int(70 * _s), height=int(26 * _s),
+            )
+
+
 def _build_vision_settings(bridge: BotBridge):
     with dpg.group(tag="settings_group_vision"):
         section_header("Vision & Detection", color=ACCENT)
@@ -314,6 +470,225 @@ def _build_vision_settings(bridge: BotBridge):
             default=CFG.min_blue_pixels,
             cb=lambda s, d: _set_int(CFG, "min_blue_pixels", d, "cfg_min_blue", 1),
         )
+
+        dpg.add_spacer(height=int(12 * _s))
+        dpg.add_separator()
+        dpg.add_spacer(height=int(8 * _s))
+        dpg.add_text("Fish Logging", color=TEXT_MUTED)
+        dpg.add_spacer(height=int(4 * _s))
+        caption_text("Record each caught fish (name + weight) to a per-session CSV file.")
+        dpg.add_spacer(height=int(4 * _s))
+        dpg.add_checkbox(
+            label="Enable fish logging",
+            tag="cfg_fish_logging_enabled",
+            default_value=CFG.fish_logging_enabled,
+            callback=lambda s, d: _set(CFG, "fish_logging_enabled", d),
+        )
+        dpg.add_spacer(height=int(8 * _s))
+        styled_button(
+            "Change Scanning Areas", "btn_scan_areas",
+            callback=lambda s, a, u: _open_scanning_area_editor(),
+            variant="neutral", width=int(190 * _s), height=int(28 * _s),
+        )
+        dpg.add_spacer(height=int(10 * _s))
+        dpg.add_text("Sessions", color=TEXT_MUTED)
+        dpg.add_spacer(height=int(4 * _s))
+        with dpg.child_window(
+            tag="session_list_window",
+            height=int(180 * _s),
+            border=True,
+        ):
+            pass
+
+
+# ---------------------------------------------------------------------------
+# Scanning area editor — fullscreen transparent tkinter overlay
+# ---------------------------------------------------------------------------
+
+
+def _open_scanning_area_editor() -> None:
+    """Spawn a transparent fullscreen overlay on the game monitor.
+
+    Two coloured rectangles (red = Fish Name, blue = Weight) are drawn
+    directly over the live game.  The user drags the body to move and
+    drags any corner handle to resize.  OK saves to CFG; Cancel discards.
+    Runs in its own thread so the DPG UI stays responsive.
+    """
+    try:
+        import tkinter as tk
+    except ImportError:
+        log.warning("Tkinter is not available in this build; scanning area editor is disabled.")
+        return
+
+    monitors = get_monitors()
+    mon_idx  = max(0, min(CFG.monitor_index, len(monitors) - 1))
+    mon      = monitors[mon_idx]
+    sw, sh   = mon.width, mon.height
+    off_x    = mon.x
+    off_y    = mon.y
+
+    # Pixels that use this colour become see-through on Windows
+    _TRANSPARENT = "#000001"
+    _NAME_CLR    = "#FF4444"
+    _WEIGHT_CLR  = "#44AAFF"
+    _HANDLE      = 10          # half-size of corner square
+    _BORDER      = 3
+
+    def _run() -> None:
+        root = tk.Tk()
+        root.overrideredirect(True)
+        root.geometry(f"{sw}x{sh}+{off_x}+{off_y}")
+        root.attributes("-topmost", True)
+        root.configure(bg=_TRANSPARENT)
+        root.attributes("-transparentcolor", _TRANSPARENT)
+
+        canvas = tk.Canvas(root, bg=_TRANSPARENT, highlightthickness=0,
+                           cursor="fleur")
+        canvas.place(x=0, y=0, width=sw, height=sh)
+
+        # ── Convert config ratios → pixel rects ──────────────────────────
+        def r2px(ratios):
+            l, t, r, b = ratios
+            return [int(l * sw), int(t * sh), int(r * sw), int(b * sh)]
+
+        state = {
+            "name":          r2px(CFG.ocr_name_roi_ratios),
+            "weight":        r2px(CFG.ocr_weight_roi_ratios),
+            "drag_target":   None,
+            "drag_mode":     None,
+            "drag_start":    (0, 0),
+            "drag_rect_start": None,
+        }
+
+        # ── Drawing ───────────────────────────────────────────────────────
+        def redraw():
+            canvas.delete("overlay")
+            for which, color in (("name", _NAME_CLR), ("weight", _WEIGHT_CLR)):
+                x1, y1, x2, y2 = state[which]
+                lx, rx = min(x1, x2), max(x1, x2)
+                ty, by = min(y1, y2), max(y1, y2)
+                label = "Fish Name" if which == "name" else "Weight (g)"
+                # Rectangle border (no fill — game shows through)
+                canvas.create_rectangle(lx, ty, rx, by, outline=color,
+                                        width=_BORDER, tags="overlay")
+                # Label badge above the rectangle
+                tx, text_y = lx + 6, ty - 14
+                canvas.create_rectangle(tx - 4, text_y - 2,
+                                        tx + len(label) * 8 + 4, text_y + 16,
+                                        fill="#1a1a2e", outline=color, width=1,
+                                        tags="overlay")
+                canvas.create_text(tx, text_y + 7, text=label,
+                                   fill=color, anchor="w",
+                                   font=("Arial", 11, "bold"), tags="overlay")
+                # Corner handles
+                for cx, cy in [(lx, ty), (rx, ty), (lx, by), (rx, by)]:
+                    canvas.create_rectangle(
+                        cx - _HANDLE, cy - _HANDLE,
+                        cx + _HANDLE, cy + _HANDLE,
+                        fill=color, outline="white", width=1, tags="overlay",
+                    )
+
+        # ── Instruction banner ────────────────────────────────────────────
+        banner = ("Drag to move  •  Drag corner squares to resize  "
+                  "•  Red = Fish Name  |  Blue = Weight (g)")
+        bx = sw // 2
+        canvas.create_rectangle(bx - 370, 10, bx + 370, 40,
+                                 fill="#1a1a2e", outline="#444444", width=1)
+        canvas.create_text(bx, 25, text=banner, fill="white",
+                           font=("Arial", 12))
+
+        # ── OK / Cancel buttons (bottom-right) ────────────────────────────
+        btn_frame = tk.Frame(root, bg="#1a1a2e", bd=0)
+
+        def do_apply():
+            def p2r(rect):
+                x1, y1, x2, y2 = rect
+                return (
+                    max(0.0, min(1.0, min(x1, x2) / sw)),
+                    max(0.0, min(1.0, min(y1, y2) / sh)),
+                    max(0.0, min(1.0, max(x1, x2) / sw)),
+                    max(0.0, min(1.0, max(y1, y2) / sh)),
+                )
+            CFG.ocr_name_roi_ratios   = p2r(state["name"])
+            CFG.ocr_weight_roi_ratios = p2r(state["weight"])
+            CFG.save()
+            log.info("OCR scanning areas saved — name=%s  weight=%s",
+                     CFG.ocr_name_roi_ratios, CFG.ocr_weight_roi_ratios)
+            root.destroy()
+
+        tk.Button(
+            btn_frame, text="OK", bg="#4CAF50", fg="white",
+            activebackground="#45a049", activeforeground="white",
+            font=("Arial", 12, "bold"), padx=22, pady=8, bd=0,
+            command=do_apply,
+        ).pack(side=tk.LEFT, padx=(0, 6))
+        tk.Button(
+            btn_frame, text="Cancel", bg="#555555", fg="white",
+            activebackground="#666666", activeforeground="white",
+            font=("Arial", 12), padx=22, pady=8, bd=0,
+            command=root.destroy,
+        ).pack(side=tk.LEFT)
+        btn_frame.place(x=sw - 270, y=sh - 64)
+
+        # ── Mouse interaction ─────────────────────────────────────────────
+        def hit_test(ex, ey, rect):
+            x1, y1, x2, y2 = rect
+            lx, rx = min(x1, x2), max(x1, x2)
+            ty, by = min(y1, y2), max(y1, y2)
+            hs = _HANDLE + 4
+            for mode, cx, cy in [("tl", lx, ty), ("tr", rx, ty),
+                                  ("bl", lx, by), ("br", rx, by)]:
+                if abs(ex - cx) <= hs and abs(ey - cy) <= hs:
+                    return mode
+            if lx <= ex <= rx and ty <= ey <= by:
+                return "move"
+            return None
+
+        def on_press(event):
+            for which in ("name", "weight"):
+                mode = hit_test(event.x, event.y, state[which])
+                if mode:
+                    state["drag_target"]    = which
+                    state["drag_mode"]      = mode
+                    state["drag_start"]     = (event.x, event.y)
+                    state["drag_rect_start"] = list(state[which])
+                    return
+
+        def on_drag(event):
+            if not state["drag_target"]:
+                return
+            dx = event.x - state["drag_start"][0]
+            dy = event.y - state["drag_start"][1]
+            r  = state["drag_rect_start"]
+            which, mode = state["drag_target"], state["drag_mode"]
+
+            if mode == "move":
+                w, h = r[2] - r[0], r[3] - r[1]
+                nx = max(0, min(sw - w, r[0] + dx))
+                ny = max(0, min(sh - h, r[1] + dy))
+                state[which] = [nx, ny, nx + w, ny + h]
+            elif mode == "tl":
+                state[which] = [max(0, r[0]+dx), max(0, r[1]+dy), r[2], r[3]]
+            elif mode == "tr":
+                state[which] = [r[0], max(0, r[1]+dy), min(sw, r[2]+dx), r[3]]
+            elif mode == "bl":
+                state[which] = [max(0, r[0]+dx), r[1], r[2], min(sh, r[3]+dy)]
+            elif mode == "br":
+                state[which] = [r[0], r[1], min(sw, r[2]+dx), min(sh, r[3]+dy)]
+            redraw()
+
+        def on_release(event):
+            state["drag_target"] = None
+            state["drag_mode"]   = None
+
+        canvas.bind("<Button-1>",       on_press)
+        canvas.bind("<B1-Motion>",      on_drag)
+        canvas.bind("<ButtonRelease-1>", on_release)
+
+        redraw()
+        root.mainloop()
+
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def _build_timing_settings():
@@ -892,6 +1267,19 @@ def update_settings_ui(bridge: BotBridge):
     update_hsv_preview("cfg_hsv_bl", CFG.hsv.blue)
     dpg.set_value("cfg_roi_ignore_margin", CFG.roi.ignore_margin_ratio)
     dpg.set_value("cfg_min_blue", CFG.min_blue_pixels)
+    dpg.set_value("cfg_fish_logging_enabled", CFG.fish_logging_enabled)
+
+    if _session_manager is not None and dpg.does_item_exist("session_list_window"):
+        global _last_known_active_id
+        active_id = _session_manager.active_session_id()
+        if active_id != _last_known_active_id:
+            _last_known_active_id = active_id
+            _rebuild_session_list()
+        elif active_id and dpg.does_item_exist(f"session_text_{active_id}"):
+            count = _session_manager.active_fish_count()
+            start = _session_manager.active_session_start()
+            label = f"● {start[:16]} · {count} fish"
+            dpg.set_value(f"session_text_{active_id}", label)
 
     dpg.set_value("cfg_timing_cast", CFG.timing.cast_animation_secs)
     dpg.set_value("cfg_timing_bite", CFG.timing.bite_timeout_secs)

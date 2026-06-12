@@ -29,6 +29,8 @@ class BotStatus:
     is_stopped: bool = True
     scaled_min_area: float = 40.0
     current_scale: float = 1.0
+    last_fish_name: Optional[str] = None
+    last_fish_weight_g: Optional[str] = None
 
 
 class BotBridge:

@@ -84,7 +84,6 @@ jobs:
           --add-data "templates;templates" \
           --add-data "assets;assets" \
           --add-data "version.txt;." \
-          --exclude-module tkinter \
           --exclude-module unittest \
           --exclude-module test \
           --exclude-module xml \

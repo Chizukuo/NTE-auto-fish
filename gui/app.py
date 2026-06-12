@@ -11,7 +11,7 @@ from config import CFG
 from gui.bridge import BotBridge
 from gui.pages.dashboard import create_dashboard, update_dashboard_ui
 from gui.pages.logs import create_logs, update_logs_ui
-from gui.pages.settings import create_settings, update_settings_ui
+from gui.pages.settings import create_settings, update_settings_ui, init_session_manager
 from gui.sidebar import create_sidebar, set_active_page
 from gui.theme import _FONT_PATH, FONT_SIZES, build_global_theme, set_ui_scale
 from main import NTEFishingBot, log
@@ -33,7 +33,12 @@ class FishingGUI:
     def __init__(self):
         self._enable_hidpi()
         self.bridge = BotBridge()
-        self.bot = NTEFishingBot(bridge=self.bridge)
+        self.bot = NTEFishingBot(
+            bridge=self.bridge,
+            hide_ui_callback=lambda: dpg.hide_item("PrimaryWindow"),
+            show_ui_callback=lambda: dpg.show_item("PrimaryWindow"),
+        )
+        init_session_manager(self.bot._session_manager)
         self.bot_thread: threading.Thread | None = None
         self._bot_lock = threading.Lock()
         self._hotkey_handles: list = []

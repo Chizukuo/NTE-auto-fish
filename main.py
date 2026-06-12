@@ -19,8 +19,16 @@ from random import SystemRandom
 from typing import TYPE_CHECKING, Optional
 
 from config import CFG, AppConfig, DEFAULT_SETTINGS_PATH, jitter as cfg_jitter, sample_noise, sample_reaction
+
+try:
+    from rapidocr_onnxruntime import RapidOCR as _RapidOCR
+    _OCR_AVAILABLE = True
+except ImportError:
+    _OCR_AVAILABLE = False
+_ocr_engine = None  # type: ignore[assignment]  # lazy-initialised on first use
 from modules.logic import FishingState, FishingStateMachine, PIDController
 from modules.utils import APP_DIR, bundled_path
+from modules.session_manager import SessionManager
 
 # Third-party imports — deferred so entrypoints can validate dependencies first.
 try:
@@ -77,6 +85,8 @@ class NTEFishingBot:
         self,
         cfg: AppConfig = CFG,
         bridge: Optional["BotBridge"] = None,
+        hide_ui_callback: Optional[callable] = None,
+        show_ui_callback: Optional[callable] = None,
     ) -> None:
         if not _TP_LOADED:
             raise RuntimeError(
@@ -86,6 +96,8 @@ class NTEFishingBot:
 
         self.cfg = cfg
         self.bridge = bridge
+        self._hide_ui = hide_ui_callback
+        self._show_ui = show_ui_callback
         
         if bridge:
             from gui.bridge import BridgeHandler
@@ -137,9 +149,14 @@ class NTEFishingBot:
         self._last_action = "NONE"
         self._consecutive_waiting_timeouts = 0
 
+        self._last_fish_name: str = ""
+        self._last_fish_weight_g: str = ""
+
         self._log("Bot initialized.")
         self._csv_handle = None
         self._csv_writer = None
+        sessions_dir = os.path.join(APP_DIR, "sessions")
+        self._session_manager = SessionManager(sessions_dir=sessions_dir)
 
     @property
     def is_stopped(self) -> bool:
@@ -165,6 +182,10 @@ class NTEFishingBot:
         self._last_time = time.time()
         self._last_action = "NONE"
         self._consecutive_waiting_timeouts = 0
+        self._last_fish_name = ""
+        self._last_fish_weight_g = ""
+        if not paused and self.cfg.fish_logging_enabled:
+            self._session_manager.start_session()
 
     def request_stop(self) -> None:
         self._stop_flag = True
@@ -209,6 +230,8 @@ class NTEFishingBot:
                 is_stopped=self._is_stopped,
                 scaled_min_area=self._scaled_min_area,
                 current_scale=self._current_scale,
+                last_fish_name=self._last_fish_name,
+                last_fish_weight_g=self._last_fish_weight_g,
             )
         )
 
@@ -241,6 +264,8 @@ class NTEFishingBot:
             if not self._is_stopped:
                 self._bait_error_count = 0
                 self._is_paused = False
+                if self.cfg.fish_logging_enabled and self._session_manager.active_session_id() is None:
+                    self._session_manager.start_session()
                 self._log("Bot resumed by user.")
         elif cmd == "recalibrate":
             self._is_paused = True
@@ -453,6 +478,10 @@ class NTEFishingBot:
                     self._csv_handle = None
             except Exception:
                 log.debug("Failed to close debug CSV handle during shutdown.", exc_info=True)
+            try:
+                self._session_manager.end_session()
+            except Exception:
+                log.debug("Failed to close session on shutdown.", exc_info=True)
             try:
                 self._push_status()
                 self._log(f"Bot stopped. Fish caught: {self._fish_count}")
@@ -815,6 +844,90 @@ class NTEFishingBot:
             poll = cfg_jitter(poll, poll * 0.3, minimum=0.005)
         self._stop_event.wait(timeout=poll)
 
+    def _append_catch(self, name: str, weight_g: str) -> None:
+        """Write one catch to the active session and cache for the UI."""
+        self._last_fish_name = name
+        self._last_fish_weight_g = weight_g
+        if self.cfg.fish_logging_enabled and (name or weight_g):
+            self._session_manager.append_catch(name, weight_g)
+
+    def _ocr_catch_screen(self) -> tuple[str, str]:
+        """
+        Capture the result card and OCR the fish name and weight.
+        Returns (name, weight_g) strings, or ("", "") if OCR is unavailable or fails.
+        """
+        if not self.cfg.fish_logging_enabled or not _OCR_AVAILABLE:
+            return "", ""
+        if not self._screen_w or not self._screen_h:
+            return "", ""
+
+        global _ocr_engine
+        if _ocr_engine is None:
+            _ocr_engine = _RapidOCR()
+
+        import re
+
+        def _roi(left_r, top_r, right_r, bottom_r) -> dict:
+            return {
+                "left":   self._mon_x + int(self._screen_w * left_r),
+                "top":    self._mon_y + int(self._screen_h * top_r),
+                "width":  int(self._screen_w * (right_r - left_r)),
+                "height": int(self._screen_h * (bottom_r - top_r)),
+            }
+
+        def _ocr_region(roi: dict) -> str:
+            try:
+                img = self.capture.grab_bgr(roi)
+                # Scale up small regions so OCR has enough pixels to work with
+                h, w = img.shape[:2]
+                if h < 80:
+                    img = cv2.resize(img, (w * 3, h * 3), interpolation=cv2.INTER_CUBIC)
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                # Otsu picks the optimal split per-image; works for both
+                # light-on-dark and dark-on-light text without a hard-coded level.
+                _, thresh = cv2.threshold(
+                    gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
+                )
+                # If the background is mostly white the text is dark — invert so
+                # characters are always white on black (better for RapidOCR).
+                if cv2.countNonZero(thresh) > thresh.size * 0.5:
+                    thresh = cv2.bitwise_not(thresh)
+                # RapidOCR expects BGR
+                bgr = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+                result, _ = _ocr_engine(bgr)
+                if not result:
+                    return ""
+                return " ".join(r[1] for r in result).strip()
+            except Exception:
+                log.debug("OCR region failed.", exc_info=True)
+                return ""
+
+        import dearpygui.dearpygui as _dpg
+        _gui_active = _dpg.is_dearpygui_running()
+        if self._hide_ui and _gui_active:
+            try:
+                self._hide_ui()
+            except Exception:
+                self._log("Failed to hide DPG window for OCR capture", logging.DEBUG)
+        try:
+            name_roi = _roi(*self.cfg.ocr_name_roi_ratios)
+            raw_name = _ocr_region(name_roi)
+            name = re.sub(r"[^\w '\-]", " ", raw_name).strip()
+            name = re.sub(r" {2,}", " ", name)
+
+            weight_roi = _roi(*self.cfg.ocr_weight_roi_ratios)
+            raw_weight = _ocr_region(weight_roi)
+            m = re.search(r"(\d+)", raw_weight)
+            weight_g = m.group(1) if m else ""
+        finally:
+            if self._show_ui and _gui_active:
+                try:
+                    self._show_ui()
+                except Exception:
+                    self._log("Failed to show DPG window after OCR capture", logging.DEBUG)
+
+        return name, weight_g
+
     def _handle_result(self) -> None:
         # Check for error dialog early — it auto-dismisses in ~2s
         if self._roi_error:
@@ -861,8 +974,11 @@ class NTEFishingBot:
             self.sm.transition(FishingState.IDLE)
             return
 
+        fish_name, weight_g = self._ocr_catch_screen()
         self._fish_count += 1
-        self._log(f"[RESULT] Fish #{self._fish_count}.")
+        catch_info = f" ({fish_name}, {weight_g} g)" if fish_name or weight_g else ""
+        self._log(f"[RESULT] Fish #{self._fish_count}{catch_info}.")
+        self._append_catch(fish_name, weight_g)
         self._dismiss_result()
         self.sm.transition(FishingState.IDLE)
 
