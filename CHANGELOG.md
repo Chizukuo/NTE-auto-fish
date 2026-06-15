@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.9.0...v0.10.0) (2026-06-12)
+
+
+### Features
+
+* per-session fish catch logging (CSV/JSON/XLSX export) ([#52](https://github.com/Chizukuo/NTE-auto-fish/issues/52)) ([28897d1](https://github.com/Chizukuo/NTE-auto-fish/commit/28897d1cc1ad2216cfedce9c16be297e9db06aaa))
+
 ## [0.9.0](https://github.com/Chizukuo/NTE-auto-fish/compare/v0.8.0...v0.9.0) (2026-05-20)
 
 
