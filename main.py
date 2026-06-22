@@ -506,12 +506,14 @@ class NTEFishingBot:
         if timeout <= 0:
             return self._stop_flag or self._is_paused
         deadline = time.monotonic() + timeout
-        while not (self._stop_flag or self._is_paused):
+        while True:
+            self._poll_commands()
+            if self._stop_flag or self._is_paused:
+                return True
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 return False
             self._stop_event.wait(timeout=min(remaining, 0.05))
-        return True
 
     def _handle_idle(self) -> None:
         self._log("[IDLE] Casting...")
