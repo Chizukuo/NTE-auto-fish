@@ -76,15 +76,23 @@ class VisionModule:
         ignore_margin_ratio: float = 0.0,
         last_known_x: float | None = None,
         hsv_img: np.ndarray | None = None,
+        morph_open: bool = True,
+        min_aspect: float = 0.0,
     ):
-        """Return the horizontal centroid for pixels inside an HSV range."""
+        """Return the horizontal centroid for pixels inside an HSV range.
+
+        Disable *morph_open* at low resolutions: the cursor is only 2-3 px wide
+        at 720p and a 3x3 opening erases it. *min_aspect* (height / width)
+        rejects blobs that are not tall and thin like the cursor.
+        """
         hsv = hsv_img if hsv_img is not None else cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(
             hsv,
             np.array(lower, dtype=np.uint8),
             np.array(upper, dtype=np.uint8),
         )
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, _KERNEL_3x3)
+        if morph_open:
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, _KERNEL_3x3)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if not contours:
@@ -98,6 +106,9 @@ class VisionModule:
             bbox_area = w * h
 
             if bbox_area < min_area:
+                continue
+
+            if min_aspect > 0.0 and h < min_aspect * w:
                 continue
 
             if ignore_margin_ratio > 0.0:
@@ -164,10 +175,18 @@ class VisionModule:
         hsv_img: np.ndarray | None = None,
     ) -> bool:
         """Return true when enough bite-trigger pixels are present."""
+        threshold = CFG.min_blue_pixels if min_pixels is None else min_pixels
+        return VisionModule.count_blue_pixels(bgr_img, hsv_range, hsv_img) >= threshold
+
+    @staticmethod
+    def count_blue_pixels(
+        bgr_img: np.ndarray,
+        hsv_range: HsvRange | None = None,
+        hsv_img: np.ndarray | None = None,
+    ) -> int:
+        """Count pixels inside the bite-trigger HSV range."""
         hsv = hsv_img if hsv_img is not None else cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
         blue = hsv_range or CFG.hsv.blue
-        threshold = CFG.min_blue_pixels if min_pixels is None else min_pixels
         lower = np.array(blue.lower, dtype=np.uint8)
         upper = np.array(blue.upper, dtype=np.uint8)
-        mask = cv2.inRange(hsv, lower, upper)
-        return cv2.countNonZero(mask) >= threshold
+        return int(cv2.countNonZero(cv2.inRange(hsv, lower, upper)))

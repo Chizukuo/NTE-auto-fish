@@ -4,7 +4,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from config import HsvConfig
+from config import AppConfig, HsvConfig
 from modules.vision import VisionModule, _DEFAULT_MIN_AREA
 
 
@@ -93,7 +93,8 @@ class TestHSVCentroid(unittest.TestCase):
                     img,
                     HsvConfig().cursor.lower,
                     HsvConfig().cursor.upper,
-                    min_area=min_area
+                    min_area=min_area,
+                    min_aspect=AppConfig().cursor_min_aspect,
                 )
 
                 self.assertIsNotNone(result[0])
@@ -108,7 +109,8 @@ class TestHSVCentroid(unittest.TestCase):
                     img,
                     HsvConfig().cursor.lower,
                     HsvConfig().cursor.upper,
-                    min_area=min_area
+                    min_area=min_area,
+                    min_aspect=AppConfig().cursor_min_aspect,
                 )
 
                 self.assertIsNone(result[0])
