@@ -22,13 +22,13 @@ class HsvRange:
 @dataclass
 class HsvConfig:
     blue: HsvRange = field(
-        default_factory=lambda: HsvRange((100, 160, 140), (130, 255, 255))
+        default_factory=lambda: HsvRange((100, 160, 185), (130, 255, 255))
     )
     safe_zone: HsvRange = field(
-        default_factory=lambda: HsvRange((75, 190, 190), (100, 255, 255))
+        default_factory=lambda: HsvRange((75, 120, 150), (100, 255, 255))
     )
     cursor: HsvRange = field(
-        default_factory=lambda: HsvRange((18, 115, 240), (40, 150, 255))
+        default_factory=lambda: HsvRange((18, 50, 200), (40, 160, 255))
     )
 
 
@@ -163,11 +163,16 @@ class AppConfig:
     hotkeys: HotkeyConfig = field(default_factory=HotkeyConfig)
     humanization: HumanizationConfig = field(default_factory=HumanizationConfig)
     detection_min_area: float = 30.0
+    cursor_min_aspect: float = 2.5
     min_blue_pixels: int = 300
     result_close_method: str = "click"
     debug_mode: bool = False
     always_on_top: bool = True
     monitor_index: int = 0
+    # When the game window is found its client area replaces the monitor as the
+    # calibration surface, so windowed mode (e.g. 1280x720) maps ROIs correctly.
+    use_game_window: bool = True
+    game_process_names: tuple = ("HTGame.exe", "NTEGame.exe", "NTEGlobalGame.exe")
     fish_logging_enabled: bool = False
     ocr_name_roi_ratios: tuple = (0.35, 0.30, 0.65, 0.42)
     ocr_weight_roi_ratios: tuple = (0.45, 0.43, 0.55, 0.52)

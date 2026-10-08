@@ -36,6 +36,7 @@ try:
     from screeninfo import get_monitors
     from modules.io_module import CaptureModule, InputModule
     from modules.vision import VisionModule
+    from modules.window import find_game_window, focus_window
     _TP_LOADED = True
 except ImportError:
     cv2 = CaptureModule = InputModule = VisionModule = None  # type: ignore[assignment]
@@ -135,6 +136,9 @@ class NTEFishingBot:
         self._scaled_min_area = 30.0
         self._scaled_blue_pixels = 300
         self._scaled_error_white_min = 1200
+        self._morph_open = True
+        self._blue_baseline: Optional[int] = None
+        self._blue_hits = 0
 
         self._last_pid_out = 0.0
         self._cursor_x_rel = None
@@ -292,38 +296,48 @@ class NTEFishingBot:
             "height": roi["height"],
         }
 
-    def calibrate(self) -> None:
-        self._log("[Calibration] Capturing full screen...")
-
+    def _calibration_surface(self) -> dict:
+        """Return the game window client area, or the active monitor as fallback."""
+        if self.cfg.use_game_window:
+            win = find_game_window(self.cfg.game_process_names)
+            if win:
+                self._log(
+                    f"[Calibration] Game window found: {win.width}x{win.height} at ({win.left}, {win.top})"
+                )
+                focus_window(win.hwnd)
+                return {"left": win.left, "top": win.top, "width": win.width, "height": win.height}
+            self._log(
+                "[Calibration] Game window not found, falling back to full monitor.",
+                logging.WARNING,
+            )
         mon = self.get_active_monitor()
+        return {"left": mon.x, "top": mon.y, "width": mon.width, "height": mon.height}
 
-        region = {
-            "left": mon.x,
-            "top": mon.y,
-            "width": mon.width,
-            "height": mon.height,
-        }
+    def calibrate(self) -> None:
+        self._log("[Calibration] Locating game surface...")
+
+        region = self._calibration_surface()
 
         try:
-            scene = self.capture.grab_bgr(region)
+            self.capture.grab_bgr(region)
         except Exception as e:
-            self._log(f"[Calibration] Failed to capture screen: {e}. Is the game fullscreen and minimized?", logging.ERROR)
+            self._log(f"[Calibration] Failed to capture screen: {e}. Is the game window visible?", logging.ERROR)
             self.request_stop()
             return
 
-        self._screen_w, self._screen_h = mon.width, mon.height
-        self._mon_x, self._mon_y = mon.x, mon.y
+        self._screen_w, self._screen_h = region["width"], region["height"]
+        self._mon_x, self._mon_y = region["left"], region["top"]
         self._current_scale = min(self._screen_w / _DEFAULT_SCREEN_W, self._screen_h / _DEFAULT_SCREEN_H)
-        
+        self._morph_open = self._current_scale >= 0.75
+
         # Scale area and pixel thresholds quadratically with resolution
         scale_sq = self._current_scale * self._current_scale
         self._scaled_min_area = max(self.cfg.detection_min_area * scale_sq, 1.0)
-        self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 1.0))
+        self._scaled_blue_pixels = int(max(self.cfg.min_blue_pixels * scale_sq, 20.0))
         self._scaled_error_white_min = int(max(1200 * scale_sq, 10.0))
-        
-        pad = self.cfg.calibration.roi_padding
+
         self._log(
-            f"[Calibration] Screen resolution: {self._screen_w}x{self._screen_h}"
+            f"[Calibration] Surface resolution: {self._screen_w}x{self._screen_h}"
         )
 
         # --- Bar ROI (ratio-based, primary method) ---
@@ -429,7 +443,9 @@ class NTEFishingBot:
                         self.cfg.hsv.cursor.upper,
                         min_area=self._scaled_min_area,
                         ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
+                        min_aspect=self.cfg.cursor_min_aspect,
                         hsv_img=hsv_img,
+                        morph_open=self._morph_open,
                     )
                     tgt_x, _ = self.vision.get_hsv_centroid_x(
                         bar_img,
@@ -438,6 +454,7 @@ class NTEFishingBot:
                         min_area=self._scaled_min_area,
                         ignore_margin_ratio=0.0,
                         hsv_img=hsv_img,
+                        morph_open=self._morph_open,
                     )
                     if cur_x is not None or tgt_x is not None:
                         self._log(f"[{state.value}] Bar detected → STRUGGLING.")
@@ -552,6 +569,8 @@ class NTEFishingBot:
             self._stop_event.wait(timeout=remaining)
         if self._stop_flag:
             return
+        self._blue_baseline = None
+        self._blue_hits = 0
         self.sm.transition(FishingState.WAITING)
 
     def _handle_waiting(self) -> None:
@@ -572,12 +591,19 @@ class NTEFishingBot:
             return
 
         btn_img = self.capture.grab_bgr(self._roi_button)
-        if self.vision.check_blue_trigger(
-            btn_img,
-            self.cfg.hsv.blue,
-            self._scaled_blue_pixels,
-        ):
-            self._log("[WAITING] Fish hooked (blue trigger).")
+        blue_count = self.vision.count_blue_pixels(btn_img, self.cfg.hsv.blue)
+        # Water behind the button can match the trigger colour, so compare
+        # against the lowest count seen since this wait began.
+        if self._blue_baseline is None or blue_count < self._blue_baseline:
+            self._blue_baseline = blue_count
+        if blue_count - self._blue_baseline >= self._scaled_blue_pixels:
+            self._blue_hits += 1
+        else:
+            self._blue_hits = 0
+        if self._blue_hits >= 2:
+            self._log(
+                f"[WAITING] Fish hooked (blue trigger: {blue_count}, baseline {self._blue_baseline})."
+            )
             self._enter_struggling()
         else:
             self._stop_event.wait(timeout=self.cfg.timing.waiting_poll_interval)
@@ -601,8 +627,10 @@ class NTEFishingBot:
             self.cfg.hsv.cursor.upper,
             min_area=self._scaled_min_area,
             ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
+            min_aspect=self.cfg.cursor_min_aspect,
             last_known_x=self._cursor_x_rel,
             hsv_img=hsv_img,
+            morph_open=self._morph_open,
         )
         target_x, _ = self.vision.get_hsv_centroid_x(
             bar_img,
@@ -612,6 +640,7 @@ class NTEFishingBot:
             ignore_margin_ratio=0.0,
             last_known_x=self._target_x_rel,
             hsv_img=hsv_img,
+            morph_open=self._morph_open,
         )
 
         self._cursor_x_rel = cursor_x
@@ -956,6 +985,8 @@ class NTEFishingBot:
             self.cfg.hsv.cursor.upper,
             min_area=self._scaled_min_area,
             ignore_margin_ratio=self.cfg.roi.ignore_margin_ratio,
+            min_aspect=self.cfg.cursor_min_aspect,
+            morph_open=self._morph_open,
         )
         tgt_x, _ = self.vision.get_hsv_centroid_x(
             bar_img,
@@ -963,6 +994,7 @@ class NTEFishingBot:
             self.cfg.hsv.safe_zone.upper,
             min_area=self._scaled_min_area,
             ignore_margin_ratio=0.0,
+            morph_open=self._morph_open,
         )
         if cur_x is not None or tgt_x is not None:
             self._log(
@@ -1262,6 +1294,7 @@ if __name__ == "__main__":
         from screeninfo import get_monitors  # noqa: F811
         from modules.io_module import CaptureModule, InputModule  # noqa: F811
         from modules.vision import VisionModule  # noqa: F811
+        from modules.window import find_game_window, focus_window  # noqa: F811
 
     _set_dpi_awareness()
 
